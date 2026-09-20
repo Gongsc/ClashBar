@@ -587,14 +587,17 @@ extension View {
     }
 
     func latencyColor(_ value: Int?) -> Color {
-        guard let value else { return self.nativeTertiaryLabel }
-        if value == 0 {
+        guard value != nil else { return self.nativeTertiaryLabel }
+        switch LatencyLevel(delay: value) {
+        case .excellent:
+            return self.nativePositive.opacity(T.Opacity.solid)
+        case .good:
+            return self.nativeTeal.opacity(T.Opacity.solid)
+        case .fair:
+            return self.nativeWarning.opacity(T.Opacity.solid)
+        case .poor, .timeout:
             return self.nativeCritical.opacity(T.Opacity.solid)
         }
-        if value <= 400 {
-            return self.nativePositive.opacity(T.Opacity.solid)
-        }
-        return self.nativeWarning.opacity(T.Opacity.solid)
     }
 
     func nextHovered<V: Equatable>(current: V?, target: V, isHovering: Bool) -> V? {

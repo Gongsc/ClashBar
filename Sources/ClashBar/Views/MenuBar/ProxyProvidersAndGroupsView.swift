@@ -735,33 +735,48 @@ private struct LatencySignalBars: View {
     private static let barCount = ProxyDelayHistory.limit
     private static let barWidth: CGFloat = 2
     private static let barSpacing: CGFloat = 1.5
-    private static let heights: [CGFloat] = [4, 7, 10, 13]
+    private static let maxHeight: CGFloat = 13
+    /// 尚未测过的槽位：一个不显眼的矮桩，和「测速超时」的红色短柱区分开。
+    private static let placeholderHeight: CGFloat = 2
 
-    /// Samples are right-aligned, so the last bar is both the tallest and the newest.
-    private var firstVisibleIndex: Int {
-        self.showsHistory ? 0 : Self.barCount - 1
+    /// 样本右对齐，最右一根永远是最新的一次；不足 barCount 时左侧补空槽。
+    /// 高度不再是固定的递增阶梯，而是每根各自由自己那次的延迟决定。
+    private var visibleSamples: [Int?] {
+        let recent = Array(self.samples.suffix(Self.barCount))
+        let padding = max(0, Self.barCount - recent.count)
+        let padded: [Int?] = Array(repeating: nil, count: padding) + recent.map { Optional($0) }
+        return self.showsHistory ? padded : Array(padded.suffix(1))
     }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: Self.barSpacing) {
-            ForEach(self.firstVisibleIndex..<Self.barCount, id: \.self) { index in
+            ForEach(Array(self.visibleSamples.enumerated()), id: \.offset) { _, sample in
                 RoundedRectangle(cornerRadius: 0.75, style: .continuous)
-                    .fill(self.barColor(at: index))
-                    .frame(width: Self.barWidth, height: Self.heights[index])
+                    .fill(self.barColor(sample))
+                    .frame(width: Self.barWidth, height: self.barHeight(sample))
             }
         }
-        .frame(height: Self.heights.last, alignment: .bottom)
+        .frame(height: Self.maxHeight, alignment: .bottom)
         .accessibilityHidden(true)
     }
 
-    private func barColor(at index: Int) -> Color {
-        // Align samples to the right (newest under the tallest bar).
-        let offset = Self.barCount - self.samples.count
-        let sampleIndex = index - offset
-        guard sampleIndex >= 0, sampleIndex < self.samples.count else {
+    /// 越快越高，和颜色同向，所以一眼扫过去高度与色相传达的是同一个结论。
+    private func barHeight(_ sample: Int?) -> CGFloat {
+        guard let sample else { return Self.placeholderHeight }
+        switch LatencyLevel(delay: sample) {
+        case .excellent: return Self.maxHeight
+        case .good: return 10
+        case .fair: return 7.5
+        case .poor: return 5
+        case .timeout: return 3
+        }
+    }
+
+    private func barColor(_ sample: Int?) -> Color {
+        guard let sample else {
             return Color(nsColor: .quaternaryLabelColor).opacity(0.35)
         }
-        return self.latencyColor(self.samples[sampleIndex])
+        return self.latencyColor(sample)
     }
 }
 

@@ -1,7 +1,7 @@
 import Foundation
 
 enum ProxyDelayHistory {
-    static let limit = 4
+    static let limit = 5
 }
 
 struct ProxyGroupsResponse: Decodable, Equatable {
