@@ -327,6 +327,9 @@ final class StatusItemController: NSObject {
         self.schedulePanelStabilizationPasses(for: button)
         self.startGlobalMonitor()
         self.viewModel.setPanelPresented(true)
+        // 打开面板是用户察觉图标不对时的必经动作，顺手和模型对一次账，
+        // 避免任何一次漏掉的增量更新永久留在菜单栏上。
+        self.refreshDisplayNow()
     }
 
     @objc
@@ -461,17 +464,27 @@ final class StatusItemController: NSObject {
 
     private func scheduleRefresh(display: MenuBarDisplay) {
         let renderKey = self.renderKey(for: display)
-        guard renderKey != self.lastRenderedKey else { return }
+        guard renderKey != self.lastRenderedKey else {
+            // 模型回到了屏幕上已经显示的状态，撤销还没执行的那次重绘。留着它的话，
+            // 它会把过期快照画上去并把 lastRenderedKey 记成过期值；仅图标模式下渲染键
+            // 不会自行翻动，之后再没有事件能纠正这次错位。
+            self.cancelScheduledRefresh()
+            return
+        }
         self.pendingDisplay = display
         self.pendingRenderKey = renderKey
         self.flushScheduledRefreshIfNeeded()
     }
 
-    private func refreshDisplayNow() {
+    private func cancelScheduledRefresh() {
         self.refreshWorkItem?.cancel()
         self.refreshWorkItem = nil
         self.pendingDisplay = nil
         self.pendingRenderKey = nil
+    }
+
+    private func refreshDisplayNow() {
+        self.cancelScheduledRefresh()
         let display = self.viewModel.display
         self.refreshDisplay(display, renderKey: self.renderKey(for: display))
         self.lastDisplayRefreshAt = Date()
@@ -509,12 +522,13 @@ final class StatusItemController: NSObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.refreshWorkItem = nil
-            guard let nextDisplay = self.pendingDisplay, let nextRenderKey = self.pendingRenderKey else { return }
             self.pendingDisplay = nil
             self.pendingRenderKey = nil
-            self.refreshDisplay(nextDisplay, renderKey: nextRenderKey)
+            // 画此刻的真值，而不是排队那一刻捕获的快照：防抖只承担限流职责，
+            // 窗口内的状态抖动不再可能把过期值刷到菜单栏上。
+            let display = self.viewModel.display
+            self.refreshDisplay(display, renderKey: self.renderKey(for: display))
             self.lastDisplayRefreshAt = Date()
-            self.flushScheduledRefreshIfNeeded()
         }
         self.refreshWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + remainingDelay, execute: work)
