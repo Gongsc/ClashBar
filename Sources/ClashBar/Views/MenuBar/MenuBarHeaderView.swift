@@ -58,7 +58,7 @@ struct MenuBarHeaderView: TranslatingView {
                 .accessibilityLabel(self.tr("ui.action.open_project_homepage"))
 
                 VStack(alignment: .leading, spacing: T.space2) {
-                    Text("ClashBar")
+                    Text("ClashBarPlus")
                         .font(.app(size: T.FontSize.title3, weight: .semibold))
                         .foregroundStyle(nativePrimaryLabel)
 

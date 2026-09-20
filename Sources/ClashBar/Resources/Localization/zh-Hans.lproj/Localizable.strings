@@ -10,7 +10,7 @@
 "ui.log_filter.warning" = "警告";
 "ui.log_filter.error" = "错误";
 "ui.log_source.all" = "全部来源";
-"ui.log_source.clashbar" = "ClashBar";
+"ui.log_source.clashbar" = "ClashBarPlus";
 "ui.log_source.mihomo" = "Mihomo";
 
 "ui.header.status.running" = "运行中";
@@ -102,7 +102,7 @@
 "ui.quick.ssid.enable_auto_switch" = "开启 Wi-Fi 自动切换";
 "ui.quick.ssid.disable_auto_switch" = "关闭 Wi-Fi 自动切换";
 "ui.quick.ssid.usage_hint" = "开启后右键配置文件绑定";
-"ui.banner.ssid_strategy.title" = "ClashBar 配置自动切换";
+"ui.banner.ssid_strategy.title" = "ClashBarPlus 配置自动切换";
 "ui.banner.copied.title" = "终端代理命令已复制";
 "ui.banner.mode.title" = "运行模式";
 "ui.system_proxy.remote_target_warning" = "系统代理当前指向远程内核，请确认远程地址可达。";
@@ -242,14 +242,14 @@
 "app.settings.error.save_failed" = "%@ 保存失败: %@";
 "app.settings.overlay_success" = "已保留设置并覆盖当前配置";
 "app.launch_at_login.error.unsupported_environment" = "仅可在 .app 包内启用开机自启，请运行打包后的应用";
-"app.launch_at_login.error.requires_approval" = "需要在系统设置 > 通用 > 登录项中允许 ClashBar";
+"app.launch_at_login.error.requires_approval" = "需要在系统设置 > 通用 > 登录项中允许 ClashBarPlus";
 "app.launch_at_login.error.register_failed" = "开启开机自启失败: %@";
 "app.launch_at_login.error.unregister_failed" = "关闭开机自启失败: %@";
 "app.system_proxy.error.invalid_host" = "代理地址无效";
 "app.system_proxy.error.invalid_port" = "代理端口无效";
 "app.system_proxy.error.helper_not_bundled" = "未找到系统代理 helper。请使用打包后的应用（.app/.dmg）";
-"app.system_proxy.error.helper_install_location" = "请先将 ClashBar.app 拖到“应用程序”目录后重试";
-"app.system_proxy.error.helper_needs_approval" = "需要在系统设置 > 通用 > 登录项中允许 ClashBar 后台项目，然后重试";
+"app.system_proxy.error.helper_install_location" = "请先将 ClashBarPlus.app 拖到“应用程序”目录后重试";
+"app.system_proxy.error.helper_needs_approval" = "需要在系统设置 > 通用 > 登录项中允许 ClashBarPlus 后台项目，然后重试";
 "app.system_proxy.error.helper_not_registered" = "系统代理 helper 未注册";
 "app.system_proxy.error.helper_not_registered_with_detail" = "系统代理 helper 未注册: %@";
 "app.system_proxy.error.helper_start_timed_out" = "系统代理 helper 启动超时";
@@ -263,7 +263,7 @@
 "app.system_proxy.alert.helper_start_timed_out" = "Helper 启动超时";
 "app.system_proxy.alert.helper_connection_failed" = "Helper 连接失败";
 "app.system_proxy.alert.helper_operation_failed" = "系统代理操作失败";
-"app.system_proxy.alert.helper_install_location" = "请先将 ClashBar 放到应用程序目录";
+"app.system_proxy.alert.helper_install_location" = "请先将 ClashBarPlus 放到应用程序目录";
 "app.system_proxy.alert.helper_not_bundled" = "App 包内缺少 Helper";
 "app.system_proxy.alert.helper_invalid_signature" = "Helper 签名异常";
 "app.system_proxy.alert.unknown" = "系统代理操作失败";
@@ -303,9 +303,9 @@
 "app.core.alert.start_failed.title" = "启动内核失败";
 "app.core.alert.restart_failed.title" = "重启内核失败";
 "app.core.alert.process_terminated.title" = "内核异常退出";
-"app.core.error.binary_not_found" = "当前版本未内置 mihomo。请先将名为“mihomo”的可执行文件复制到以下目录，再重新启动 ClashBar Core：\n%@";
+"app.core.error.binary_not_found" = "当前版本未内置 mihomo。请先将名为“mihomo”的可执行文件复制到以下目录，再重新启动 ClashBarPlus Core：\n%@";
 "app.core.setup_required.title" = "安装 Mihomo 内核";
-"app.core.setup_required.message" = "当前版本不内置 mihomo。首次使用前，请将名为“mihomo”的可执行文件复制到以下目录：\n%@\n\nClashBar 之后会从该目录读取内核。";
+"app.core.setup_required.message" = "当前版本不内置 mihomo。首次使用前，请将名为“mihomo”的可执行文件复制到以下目录：\n%@\n\nClashBarPlus 之后会从该目录读取内核。";
 
 "log.process.terminated" = "mihomo 已退出，退出码 %d";
 "log.working_dir_init_failed" = "初始化工作目录失败: %@";
