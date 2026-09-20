@@ -23,6 +23,9 @@
         ],
         "fix": [
           {
+            "text": "**启动时弹出空白 Settings 窗口**：SwiftUI 的 `Settings` 场景只是菜单命令的宿主，应用自身的设置在弹出面板的 System 标签里，`⌘,` 也已重定向到那里。较新 SDK 构建出的版本会在启动时把这个空窗口显示出来，现在它在出现的瞬间即被关闭，实测全程不可见、无闪烁。"
+          },
+          {
             "text": "**菜单栏与面板品牌图标退化为 SF Symbol**：较新的 Swift 工具链会把 `Assets.xcassets` 编译成 `Assets.car` 并改用嵌套的 `Contents/Resources` 布局，包内不再存在散装 PNG。原实现只按相对路径拼接查找，四张品牌图会一起落空——菜单栏退化成 `bolt.horizontal.circle.fill`，面板左上角退化成 `paperplane.fill`。现在优先通过资源目录 API 读取，并保留旧版扁平布局的路径查找作为回退。"
           },
           {
@@ -32,6 +35,6 @@
       }
     }
   ],
-  "generatedAt": "2026-09-20T05:12:05.131Z",
+  "generatedAt": "2026-09-20T05:19:05.278Z",
   "source": "CHANGELOG.md"
 }
