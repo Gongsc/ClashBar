@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="${APP_NAME:-ClashBar}"
+APP_NAME="${APP_NAME:-ClashBarPlus}"
 BUNDLE_ID="${BUNDLE_ID:-com.clashbar}"
 APP_VERSION="${APP_VERSION:-0.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
@@ -270,7 +270,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
 $ICON_PLIST_ENTRY
 <key>ClashBarBundlesMihomoCore</key>${BUNDLES_MIHOMO_CORE_PLIST_VALUE}
-<key>NSLocationWhenInUseUsageDescription</key><string>ClashBar uses your current Wi-Fi name to switch proxy config profiles automatically.</string>
+<key>NSLocationWhenInUseUsageDescription</key><string>ClashBarPlus uses your current Wi-Fi name to switch proxy config profiles automatically.</string>
 <key>NSAppTransportSecurity</key>
 <dict>
 <key>NSAllowsArbitraryLoads</key><true/>

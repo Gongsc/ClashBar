@@ -1,9 +1,24 @@
 ---
-title: 关于 ClashBar
+title: 关于 ClashBarPlus
 description: 设计初心、体积对比、社区与开源许可。
 ---
 
-ClashBar 是基于 [mihomo](https://github.com/MetaCubeX/mihomo) 的原生 macOS 菜单栏代理客户端，使用 SwiftUI + AppKit，面向轻量、稳定与可观测的日常使用。
+ClashBarPlus 是基于 [mihomo](https://github.com/MetaCubeX/mihomo) 的原生 macOS 菜单栏代理客户端，使用 SwiftUI + AppKit，面向轻量、稳定与可观测的日常使用。
+
+## 与上游的关系
+
+ClashBarPlus 是 [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) 的 fork，基线为上游 **v0.3.3**，核心实现全部来自上游，这里只做增量改动并持续同步上游更新。
+
+- **版本号**自 `v1.0.0` 起独立编号，不跟随上游的 `v0.3.x` 序列
+- **只通过 GitHub Releases 分发 DMG**，不提供 Homebrew 安装
+- **Bundle ID、数据目录与特权助手标签与上游保持一致**，因此覆盖安装是原地升级，既有配置、订阅、设置与登录项授权全部保留
+
+<Callout type="warn" title="不能与原版并存">
+  由于 Bundle ID 相同，ClashBarPlus 与原版 ClashBar
+  不能同时安装。若此前通过 Homebrew 安装过上游版本，请先执行 `brew uninstall --cask clashbar`。
+</Callout>
+
+与上游的差异记录在[更新日志](/docs/changelog)；v0.3.3 及更早的历史见[上游 CHANGELOG](https://github.com/Sitoi/ClashBar/blob/main/CHANGELOG.md)。
 
 ## 设计初心
 
@@ -19,8 +34,8 @@ ClashBar 是基于 [mihomo](https://github.com/MetaCubeX/mihomo) 的原生 macOS
 
 | 客户端                  | 应用体积 |
 | ----------------------- | -------: |
-| ClashBar.app（No Core） |     3 MB |
-| ClashBar.app（含 Core） |  14.2 MB |
+| ClashBarPlus.app（No Core） |     3 MB |
+| ClashBarPlus.app（含 Core） |  14.2 MB |
 | ClashMac.app            |  75.2 MB |
 | Clash Verge.app         | 128.4 MB |
 | Clash Party.app         | 496.7 MB |
@@ -35,18 +50,19 @@ ClashBar 是基于 [mihomo](https://github.com/MetaCubeX/mihomo) 的原生 macOS
 
 | 渠道                                                          | 说明                                                              |
 | ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [Telegram @clashbars](https://t.me/clashbars)                 | 更新、讨论与互助                                                  |
-| [GitHub Issues](https://github.com/Sitoi/ClashBar/issues)     | Bug、功能建议与文档修正                                           |
-| [GitHub Releases](https://github.com/Sitoi/ClashBar/releases) | 正式安装包与变更说明                                              |
-| [Homebrew cask](https://github.com/Sitoi/homebrew-tap)        | `brew install --cask clashbar`（见[快速开始](/docs/quick-start)） |
+| [GitHub Issues](https://github.com/Gongsc/ClashBar/issues)     | ClashBarPlus 的 Bug、功能建议与文档修正                           |
+| [GitHub Releases](https://github.com/Gongsc/ClashBar/releases) | 正式安装包与变更说明                                              |
+| [上游 ClashBar](https://github.com/Sitoi/ClashBar)             | 上游项目本身的问题请到这里反馈                                    |
+| [Telegram @clashbars](https://t.me/clashbars)                  | 上游社区，与 ClashBarPlus 无直接关系                              |
 
-提交 Issue 时请附上 ClashBar 版本、macOS 版本、本机或远程内核，以及已脱敏的日志。请勿上传订阅链接、密钥等私人信息。
+提交 Issue 时请附上 ClashBarPlus 版本、macOS 版本、本机或远程内核，以及已脱敏的日志。请勿上传订阅链接、密钥等私人信息。
 
 ## 致谢
 
+- [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) — 本项目的上游，全部核心实现来自这里
 - [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) — 代理内核
 - 所有通过 Issue、PR 与反馈参与改进的贡献者
 
 ## 许可证
 
-本项目采用 **GPL-3.0** 开源许可，详见仓库 [LICENSE](https://github.com/Sitoi/ClashBar/blob/main/LICENSE)。
+本项目采用 **GPL-3.0** 开源许可，详见仓库 [LICENSE](https://github.com/Gongsc/ClashBar/blob/main/LICENSE)。

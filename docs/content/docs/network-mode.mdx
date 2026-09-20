@@ -3,13 +3,13 @@ title: 系统代理与 TUN
 description: 选择适合你的网络接管方式，并了解权限与安全边界。
 ---
 
-在配置可用、节点测通之后，再打开网络接管。ClashBar 提供**系统代理**和 **TUN** 两种方式：建议先用系统代理；只有需要透明代理、或要覆盖不遵循系统代理的应用流量时，再考虑 TUN。
+在配置可用、节点测通之后，再打开网络接管。ClashBarPlus 提供**系统代理**和 **TUN** 两种方式：建议先用系统代理；只有需要透明代理、或要覆盖不遵循系统代理的应用流量时，再考虑 TUN。
 
 节点与运行态观察见 [日常使用](/docs/daily-use)；端口与绕过列表见 [设置与维护](/docs/settings)。
 
 ## 系统代理
 
-在“快捷操作”中点击“系统代理”即可开启或关闭 macOS 系统代理。ClashBar 会使用当前配置中的 HTTP、SOCKS 或混合端口设置。
+在“快捷操作”中点击“系统代理”即可开启或关闭 macOS 系统代理。ClashBarPlus 会使用当前配置中的 HTTP、SOCKS 或混合端口设置。
 
 ### 代理绕过
 
@@ -19,14 +19,14 @@ description: 选择适合你的网络接管方式，并了解权限与安全边�
 
 ## TUN 模式
 
-TUN 允许 Mihomo 在更低层处理网络流量。开启时 ClashBar 会请求管理员授权，并要求本地 `mihomo` 内核具有 root 与 setuid 权限。
+TUN 允许 Mihomo 在更低层处理网络流量。开启时 ClashBarPlus 会请求管理员授权，并要求本地 `mihomo` 内核具有 root 与 setuid 权限。
 
 开启步骤：
 
 1. 确认本地内核位于 `~/Library/Application Support/clashbar/core/mihomo` 且可执行。
 2. 在“快捷操作”或“设置”中开启 TUN 模式。
 3. 在 macOS 授权提示中输入管理员凭据。
-4. ClashBar 重启内核并验证 TUN 状态。
+4. ClashBarPlus 重启内核并验证 TUN 状态。
 
 > TUN 仅作用于本地内核。连接远程机器时，相关本地设置不可修改。
 

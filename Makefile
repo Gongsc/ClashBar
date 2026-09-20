@@ -7,8 +7,8 @@ DIST_DIR := $(ROOT_DIR)/dist
 SWIFTPM_DIR := $(ROOT_DIR)/.swiftpm
 PACKAGES_DIR := $(ROOT_DIR)/Packages
 
-APP_NAME ?= ClashBar
-APP_VERSION ?= 0.1.0
+APP_NAME ?= ClashBarPlus
+APP_VERSION ?= 1.0.0
 BUILD_NUMBER ?= 1
 TARGET_ARCH ?=
 DMG_SUFFIX ?=
@@ -21,7 +21,7 @@ STRIP_BINARIES ?= 1
 
 help:
 	@printf "%s\n" \
-		"ClashBar Makefile" \
+		"ClashBarPlus Makefile" \
 		"" \
 		"Targets:" \
 		"  make build        Build dist/$(APP_NAME).app (default: no core)" \

@@ -18,7 +18,7 @@ const highlights = [
   { label: "安装包体积", value: "3 MB", hint: "无 Core 构建约数" },
   { label: "含 Core 体积", value: "≈14 MB", hint: "打包 mihomo 目标 <15 MB" },
   { label: "代理内核", value: "mihomo", hint: "Meta 生态兼容" },
-  { label: "系统要求", value: "macOS 13+", hint: "Homebrew / DMG 安装" },
+  { label: "系统要求", value: "macOS 13+", hint: "Releases DMG 安装" },
 ];
 
 const pillars = [
@@ -98,13 +98,13 @@ export default function HomePage() {
           </h1>
 
           <p className="mt-6 max-w-lg text-pretty text-base leading-7 text-slate-400 sm:text-lg sm:leading-8">
-            ClashBar 基于 mihomo
+            ClashBarPlus 基于 mihomo
             构建，把配置导入、节点切换、系统代理与排障视图收进一个紧凑的原生面板——专注日常使用，而不是堆功能。
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a
-              href="https://github.com/Sitoi/ClashBar/releases"
+              href="https://github.com/Gongsc/ClashBar/releases"
               className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-7 text-sm font-semibold text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_12px_40px_-8px_rgba(56,189,248,0.45)] transition duration-200 hover:-translate-y-0.5 hover:bg-sky-50"
             >
               <Download className="size-4 transition group-hover:scale-110" />
@@ -112,7 +112,7 @@ export default function HomePage() {
             </a>
             <div className="flex gap-3">
               <a
-                href="https://github.com/Sitoi/ClashBar"
+                href="https://github.com/Gongsc/ClashBar"
                 className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 text-sm font-medium text-white transition duration-200 hover:border-white/20 hover:bg-white/[0.07] sm:flex-none sm:px-6"
               >
                 GitHub
@@ -165,7 +165,7 @@ export default function HomePage() {
 
           <Image
             src="/clashbar-black.png"
-            alt="ClashBar 深色菜单栏界面"
+            alt="ClashBarPlus 深色菜单栏界面"
             width={812}
             height={1580}
             priority
@@ -190,7 +190,7 @@ export default function HomePage() {
       {/* Pillars */}
       <section className="relative mx-auto max-w-[1200px] px-6 py-20 sm:px-8 lg:py-24">
         <SectionHeading
-          eyebrow="为什么选择 ClashBar"
+          eyebrow="为什么选择 ClashBarPlus"
           title="为菜单栏而生的代理体验"
           description="不做重型套件，只把日常最常用的能力做好、做稳、做轻。"
         />
@@ -237,7 +237,7 @@ export default function HomePage() {
         */}
         <div
           className="grid auto-rows-[minmax(112px,auto)] grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-8"
-          aria-label="ClashBar 功能展示"
+          aria-label="ClashBarPlus 功能展示"
         >
           {/* 1. 运行态指标 4×2 */}
           <article
@@ -795,7 +795,7 @@ export default function HomePage() {
           <div className="max-w-xs">
             <div className="flex items-center gap-2.5 font-semibold text-white">
               <Image src="/clashbar-logo.png" alt="" width={28} height={28} />
-              ClashBar
+              ClashBarPlus
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-500">
               面向 macOS 的原生菜单栏 mihomo 客户端。轻量、开源、专注日常使用。
@@ -809,7 +809,7 @@ export default function HomePage() {
                 { label: "快速开始", href: "#quick-start" },
                 {
                   label: "下载",
-                  href: "https://github.com/Sitoi/ClashBar/releases",
+                  href: "https://github.com/Gongsc/ClashBar/releases",
                   external: true,
                 },
               ]}
@@ -828,12 +828,12 @@ export default function HomePage() {
               links={[
                 {
                   label: "GitHub",
-                  href: "https://github.com/Sitoi/ClashBar",
+                  href: "https://github.com/Gongsc/ClashBar",
                   external: true,
                 },
                 {
                   label: "Releases",
-                  href: "https://github.com/Sitoi/ClashBar/releases",
+                  href: "https://github.com/Gongsc/ClashBar/releases",
                   external: true,
                 },
                 {
@@ -843,7 +843,7 @@ export default function HomePage() {
                 },
                 {
                   label: "问题反馈",
-                  href: "https://github.com/Sitoi/ClashBar/issues",
+                  href: "https://github.com/Gongsc/ClashBar/issues",
                   external: true,
                 },
               ]}
@@ -852,7 +852,7 @@ export default function HomePage() {
         </div>
         <div className="border-t border-white/[0.04]">
           <p className="mx-auto max-w-[1200px] px-6 py-6 text-center text-xs text-slate-600 sm:px-8 sm:text-left">
-            © 2026 ClashBar. 开源协议为 GPL-3.0。
+            © 2026 ClashBarPlus. 开源协议为 GPL-3.0。
           </p>
         </div>
       </footer>

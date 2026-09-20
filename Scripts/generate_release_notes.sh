@@ -55,7 +55,7 @@ ${changelog_section}
 
 | 🖥 平台架构 (Architecture) | 📦 内置 Mihomo 内核 (默认推荐) | 🛠️ 无内核纯净版 (适合高阶用户) |
 | :--- | :--- | :--- |
-| ![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-M系列芯片-0071E3?style=flat-square&logo=apple&logoColor=white) | [ClashBar-${version}-apple-silicon.dmg](${download_base}/ClashBar-${version}-apple-silicon.dmg) | [ClashBar-${version}-apple-silicon-no-core.dmg](${download_base}/ClashBar-${version}-apple-silicon-no-core.dmg) |
-| ![Intel](https://img.shields.io/badge/Intel-x86__64-0071C5?style=flat-square&logo=intel&logoColor=white) | [ClashBar-${version}-intel.dmg](${download_base}/ClashBar-${version}-intel.dmg) | [ClashBar-${version}-intel-no-core.dmg](${download_base}/ClashBar-${version}-intel-no-core.dmg) |
+| ![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-M系列芯片-0071E3?style=flat-square&logo=apple&logoColor=white) | [ClashBarPlus-${version}-apple-silicon.dmg](${download_base}/ClashBarPlus-${version}-apple-silicon.dmg) | [ClashBarPlus-${version}-apple-silicon-no-core.dmg](${download_base}/ClashBarPlus-${version}-apple-silicon-no-core.dmg) |
+| ![Intel](https://img.shields.io/badge/Intel-x86__64-0071C5?style=flat-square&logo=intel&logoColor=white) | [ClashBarPlus-${version}-intel.dmg](${download_base}/ClashBarPlus-${version}-intel.dmg) | [ClashBarPlus-${version}-intel-no-core.dmg](${download_base}/ClashBarPlus-${version}-intel-no-core.dmg) |
 
 EOF

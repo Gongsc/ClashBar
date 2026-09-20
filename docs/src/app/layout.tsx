@@ -7,10 +7,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'ClashBar 文档',
-    template: '%s | ClashBar',
+    default: 'ClashBarPlus 文档',
+    template: '%s | ClashBarPlus',
   },
-  description: 'ClashBar：面向 macOS 菜单栏的 Mihomo 客户端。',
+  description: 'ClashBarPlus：面向 macOS 菜单栏的 Mihomo 客户端。',
   icons: {
     icon: [{ url: '/clashbar-logo.ico', type: 'image/x-icon' }],
     shortcut: '/clashbar-logo.ico',
