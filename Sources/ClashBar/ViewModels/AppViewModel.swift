@@ -44,6 +44,16 @@ final class AppViewModel: ObservableObject {
         set { self.trafficStore.trafficSamples = newValue }
     }
 
+    /// 改动会立刻重算采集策略，流量流随之启停，不必等下一次可见性变化。
+    var recordsTrafficWhileHidden: Bool {
+        get { self.recordTrafficWhileHiddenStorage }
+        set {
+            guard self.recordTrafficWhileHiddenStorage != newValue else { return }
+            self.recordTrafficWhileHiddenStorage = newValue
+            self.updateDataAcquisitionPolicy()
+        }
+    }
+
     var trafficHistoryWindow: TrafficHistoryWindow {
         get { TrafficHistoryWindow(rawValue: self.trafficHistoryWindowMinutes) ?? .fiveMinutes }
         set {
@@ -426,6 +436,8 @@ final class AppViewModel: ObservableObject {
     @AppStorage("clashbar.statusbar.display.mode") private var statusBarDisplayModeRaw: String = StatusBarDisplayMode
         .iconOnly.rawValue
     @AppStorage("clashbar.proxy.node.hide_unavailable") var hideUnavailableProxyNodes: Bool = false
+    /// 默认关闭：开启后面板关闭期间也保持流量流，应用不再完全空闲。
+    @AppStorage("clashbar.traffic.record_while_hidden") private var recordTrafficWhileHiddenStorage: Bool = false
     /// 只持久化「展示时长」这个偏好本身；曲线数据永远只活在内存里。
     @AppStorage("clashbar.traffic.history.window.minutes") var trafficHistoryWindowMinutes: Int = TrafficHistoryWindow
         .fiveMinutes.rawValue

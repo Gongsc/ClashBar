@@ -423,3 +423,4 @@
 "ui.traffic_window.5min" = "5 分钟";
 "ui.traffic_window.15min" = "15 分钟";
 "ui.traffic_window.30min" = "30 分钟";
+"ui.settings.record_traffic_hidden" = "面板关闭时继续记录曲线";

@@ -5,6 +5,9 @@ struct DetermineDataAcquisitionPolicyUseCase {
         let panelPresented: Bool
         let activeTab: RootTab
         let statusBarDisplayMode: StatusBarDisplayMode
+        /// 面板关闭且状态栏为「仅图标」时，流量流本会被停掉，曲线因此留下空档。
+        /// 打开这个开关会让流量流继续跑，代价是应用不再完全空闲（每秒醒一次）。
+        let recordTrafficWhileHidden: Bool
         let foregroundMediumFrequencyIntervalNanoseconds: UInt64
         let backgroundMediumFrequencyIntervalNanoseconds: UInt64
         let foregroundLowFrequencyPrimaryTabsIntervalNanoseconds: UInt64
@@ -13,7 +16,9 @@ struct DetermineDataAcquisitionPolicyUseCase {
     }
 
     func execute(_ input: Input) -> DataAcquisitionPolicy {
-        let trafficEnabled = input.panelPresented || input.statusBarDisplayMode != .iconOnly
+        let trafficEnabled = input.panelPresented
+            || input.statusBarDisplayMode != .iconOnly
+            || input.recordTrafficWhileHidden
 
         if !input.panelPresented {
             return DataAcquisitionPolicy(

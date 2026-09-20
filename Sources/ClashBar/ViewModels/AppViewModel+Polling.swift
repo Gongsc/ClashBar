@@ -119,6 +119,7 @@ extension AppViewModel {
             panelPresented: panelPresented,
             activeTab: activeTab,
             statusBarDisplayMode: self.statusBarDisplayMode,
+            recordTrafficWhileHidden: self.recordsTrafficWhileHidden,
             foregroundMediumFrequencyIntervalNanoseconds: self.foregroundMediumFrequencyIntervalNanoseconds,
             backgroundMediumFrequencyIntervalNanoseconds: self.backgroundMediumFrequencyIntervalNanoseconds,
             foregroundLowFrequencyPrimaryTabsIntervalNanoseconds: self

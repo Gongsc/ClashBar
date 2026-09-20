@@ -336,6 +336,13 @@ struct SystemTabView: TranslatingView {
                 Binding(
                     get: { self.appViewModel.autoStartCoreEnabled },
                     set: { self.appViewModel.autoStartCoreEnabled = $0 })),
+            (
+                "record-traffic-while-hidden",
+                tr("ui.settings.record_traffic_hidden"),
+                "waveform.path.ecg",
+                Binding(
+                    get: { self.appViewModel.recordsTrafficWhileHidden },
+                    set: { self.appViewModel.recordsTrafficWhileHidden = $0 })),
         ]
         let coreToggleItems: [(id: String, title: String, symbol: String, isOn: Binding<Bool>)] = [
             (
