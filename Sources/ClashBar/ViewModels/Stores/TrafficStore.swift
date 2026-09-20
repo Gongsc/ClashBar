@@ -25,12 +25,9 @@ final class TrafficStore: ObservableObject {
         willSet { self.publishChangeIfNeeded(current: self.displayDownTotal, next: newValue) }
     }
 
-    var trafficHistoryUp: [Int64] = [] {
-        willSet { self.publishChangeIfNeeded(current: self.trafficHistoryUp, next: newValue) }
-    }
-
-    var trafficHistoryDown: [Int64] = [] {
-        willSet { self.publishChangeIfNeeded(current: self.trafficHistoryDown, next: newValue) }
+    /// 只存在于内存中：面板开合之间保留，进程退出即丢弃，不做任何持久化。
+    var trafficSamples: [TrafficSample] = [] {
+        willSet { self.publishChangeIfNeeded(current: self.trafficSamples, next: newValue) }
     }
 
     private func publishChangeIfNeeded<Value: Equatable>(current: Value, next: Value) {

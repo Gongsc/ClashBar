@@ -364,8 +364,8 @@ struct ProxyTabView: TranslatingView {
 
         return ZStack {
             TrafficSparklineView(
-                upValues: self.trafficStore.trafficHistoryUp,
-                downValues: self.trafficStore.trafficHistoryDown)
+                samples: self.trafficStore.trafficSamples,
+                window: self.appViewModel.trafficHistoryWindow.duration)
                 .frame(height: sparklineHeight)
                 .padding(.horizontal, sparklineHorizontalInset)
 

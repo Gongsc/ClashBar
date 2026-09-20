@@ -416,3 +416,10 @@
 "app.config.delete.message" = "This will permanently delete the config file. If it is a remote subscription, the subscription metadata will also be removed.";
 "log.config.delete.success" = "Config deleted: %@";
 "log.config.delete.failed" = "Failed to delete config (%@): %@";
+
+/* ===== fork custom ===== */
+"ui.settings.traffic_window" = "Chart Span";
+"ui.traffic_window.1min" = "1 minute";
+"ui.traffic_window.5min" = "5 minutes";
+"ui.traffic_window.15min" = "15 minutes";
+"ui.traffic_window.30min" = "30 minutes";

@@ -39,14 +39,18 @@ final class AppViewModel: ObservableObject {
         set { self.trafficStore.displayDownTotal = newValue }
     }
 
-    var trafficHistoryUp: [Int64] {
-        get { self.trafficStore.trafficHistoryUp }
-        set { self.trafficStore.trafficHistoryUp = newValue }
+    var trafficSamples: [TrafficSample] {
+        get { self.trafficStore.trafficSamples }
+        set { self.trafficStore.trafficSamples = newValue }
     }
 
-    var trafficHistoryDown: [Int64] {
-        get { self.trafficStore.trafficHistoryDown }
-        set { self.trafficStore.trafficHistoryDown = newValue }
+    var trafficHistoryWindow: TrafficHistoryWindow {
+        get { TrafficHistoryWindow(rawValue: self.trafficHistoryWindowMinutes) ?? .oneMinute }
+        set {
+            guard self.trafficHistoryWindowMinutes != newValue.rawValue else { return }
+            self.trafficHistoryWindowMinutes = newValue.rawValue
+            self.trimTrafficHistoryToWindow()
+        }
     }
 
     var connectionsCount: Int {
@@ -422,6 +426,9 @@ final class AppViewModel: ObservableObject {
     @AppStorage("clashbar.statusbar.display.mode") private var statusBarDisplayModeRaw: String = StatusBarDisplayMode
         .iconOnly.rawValue
     @AppStorage("clashbar.proxy.node.hide_unavailable") var hideUnavailableProxyNodes: Bool = false
+    /// 只持久化「展示时长」这个偏好本身；曲线数据永远只活在内存里。
+    @AppStorage("clashbar.traffic.history.window.minutes") var trafficHistoryWindowMinutes: Int = TrafficHistoryWindow
+        .oneMinute.rawValue
     let selectedConfigKey = "clashbar.config.selected.filename"
     let legacySelectedConfigKey = "clashbar.config.selected"
     let remoteConfigSourcesKey = "clashbar.config.remote.sources.v1"

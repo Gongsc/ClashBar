@@ -389,6 +389,14 @@ struct SystemTabView: TranslatingView {
                     isSelected: { self.appViewModel.statusBarDisplayMode == $0 },
                     onSelect: { self.appViewModel.statusBarDisplayMode = $0 }))
                 self.settingsSelectionRow(.init(
+                    title: self.tr("ui.settings.traffic_window"),
+                    symbol: "chart.xyaxis.line",
+                    valueText: self.tr(self.appViewModel.trafficHistoryWindow.titleKey),
+                    options: TrafficHistoryWindow.allCases,
+                    optionTitle: { self.tr($0.titleKey) },
+                    isSelected: { self.appViewModel.trafficHistoryWindow == $0 },
+                    onSelect: { self.appViewModel.trafficHistoryWindow = $0 }))
+                self.settingsSelectionRow(.init(
                     title: self.tr("ui.settings.language"),
                     symbol: "character.book.closed",
                     valueText: self.appViewModel.uiLanguage == .zhHans ? self.tr("ui.language.zh_hans") : self

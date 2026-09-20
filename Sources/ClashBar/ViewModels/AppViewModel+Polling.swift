@@ -78,7 +78,8 @@ extension AppViewModel {
         isPanelPresented = presented
         if !presented {
             cancelProxyPortsAutoSave()
-            self.clearTrafficPresentationHistory()
+            // 曲线历史刻意不在这里清空：它只活在内存里，面板重新打开时应当接着展示。
+            // 真正该重置的时机是内核停止或切换目标机器，由 resetTrafficPresentation() 负责。
             self.releasePanelCachedData()
         }
         trimInMemoryLogsForCurrentVisibility()
@@ -248,11 +249,29 @@ extension AppViewModel {
     func clearTrafficPresentationHistory() {
         displayUpTotal = 0
         displayDownTotal = 0
-        trafficHistoryUp = []
-        trafficHistoryDown = []
-        trafficHistoryUp.reserveCapacity(historyMaxPoints)
-        trafficHistoryDown.reserveCapacity(historyMaxPoints)
+        trafficSamples = []
+        trafficSamples.reserveCapacity(self.maxTrafficSampleCount)
         lastTrafficSampleAt = nil
+    }
+
+    /// 时间窗口内允许保留的最大采样数。流量流约每秒一个点，所以按每分钟
+    /// `historyMaxPoints` 个点封顶；这只是内存兜底，真正的裁剪依据是时间。
+    var maxTrafficSampleCount: Int {
+        self.historyMaxPoints * self.trafficHistoryWindow.rawValue
+    }
+
+    func trimTrafficHistoryToWindow(now: Date = Date()) {
+        let trimmed = self.trimmedTrafficSamples(self.trafficSamples, now: now)
+        guard trimmed != self.trafficSamples else { return }
+        self.trafficSamples = trimmed
+    }
+
+    private func trimmedTrafficSamples(_ samples: [TrafficSample], now: Date) -> [TrafficSample] {
+        TrimTrafficHistoryUseCase().execute(.init(
+            samples: samples,
+            window: self.trafficHistoryWindow.duration,
+            now: now,
+            maxCount: self.maxTrafficSampleCount))
     }
 
     private func releasePanelCachedData() {
@@ -270,16 +289,10 @@ extension AppViewModel {
         ruleItems.removeAll(keepingCapacity: false)
     }
 
-    func appendTrafficHistory(up: Int64, down: Int64) {
-        trafficHistoryUp.append(max(0, up))
-        trafficHistoryDown.append(max(0, down))
-
-        if trafficHistoryUp.count > historyMaxPoints {
-            trafficHistoryUp.removeFirst(trafficHistoryUp.count - historyMaxPoints)
-        }
-        if trafficHistoryDown.count > historyMaxPoints {
-            trafficHistoryDown.removeFirst(trafficHistoryDown.count - historyMaxPoints)
-        }
+    func appendTrafficHistory(up: Int64, down: Int64, at date: Date = Date()) {
+        var samples = self.trafficSamples
+        samples.append(TrafficSample(at: date, up: max(0, up), down: max(0, down)))
+        self.trafficSamples = self.trimmedTrafficSamples(samples, now: date)
     }
 
     func updateTrafficTotals(from snapshot: TrafficSnapshot) {
