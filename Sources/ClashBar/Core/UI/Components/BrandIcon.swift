@@ -19,12 +19,23 @@ enum BrandIcon {
         "Resources/Assets.xcassets/BrandTun.imageset/icon-tun.png",
     ]
 
-    static let image: NSImage? = loadImage(relativePaths: logoRelativePaths)
-    static let runImage: NSImage? = loadImage(relativePaths: runRelativePaths)
-    static let sleepImage: NSImage? = loadImage(relativePaths: sleepRelativePaths)
-    static let tunImage: NSImage? = loadImage(relativePaths: tunRelativePaths)
+    static let image: NSImage? = loadImage(assetName: "BrandLogo", relativePaths: logoRelativePaths)
+    static let runImage: NSImage? = loadImage(assetName: "BrandRun", relativePaths: runRelativePaths)
+    static let sleepImage: NSImage? = loadImage(assetName: "BrandSleep", relativePaths: sleepRelativePaths)
+    static let tunImage: NSImage? = loadImage(assetName: "BrandTun", relativePaths: tunRelativePaths)
 
-    private static func loadImage(relativePaths: [String]) -> NSImage? {
+    /// 资源包的形态取决于构建它的 Swift 工具链：较新的工具链会把 Assets.xcassets 编译成
+    /// Assets.car，并改用嵌套的 Contents/Resources 布局。那种包里根本不存在散装 PNG，
+    /// 只按相对路径找必然全部落空，四张品牌图会一起退化成 SF Symbol（菜单栏变成
+    /// bolt.horizontal.circle.fill，面板左上角变成 paperplane.fill）。
+    /// 所以先走资源目录 API，再退回旧版扁平布局的裸路径拼接。
+    private static func loadImage(assetName: NSImage.Name, relativePaths: [String]) -> NSImage? {
+        for bundle in AppResourceBundleLocator.candidateBundles() {
+            if let image = bundle.image(forResource: assetName) {
+                return image
+            }
+        }
+
         for bundle in AppResourceBundleLocator.candidateBundles() {
             for relativePath in relativePaths {
                 let url = bundle.bundleURL.appendingPathComponent(relativePath, isDirectory: false)
@@ -33,6 +44,7 @@ enum BrandIcon {
                 }
             }
         }
+
         return nil
     }
 }
