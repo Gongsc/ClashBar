@@ -8,7 +8,7 @@
 
 **✨ 新增功能 (New Features)**
 
-- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **流量曲线展示时长可设置**：设置页新增「流量曲线时长」，可选 1 / 5 / 15 / 30 分钟，默认 1 分钟。横轴按真实时间排布，切换时长立即生效。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **流量曲线展示时长可设置**：设置页新增「流量曲线时长」，可选 1 / 5 / 15 / 30 分钟，默认 5 分钟。横轴按真实时间排布，切换时长立即生效。
 - ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **独立版本线**：自 v1.0.0 起独立编号。发布流程只识别 `v1.0.0` 及以上的标签，从上游同步过来的 `v0.x` 一律忽略；手动或推送一个低于 v1.0.0 的标签会在推送前被拒绝，不会留下脏标签。
 
 **🚀 优化改进 (Improvements)**

@@ -45,7 +45,7 @@ final class AppViewModel: ObservableObject {
     }
 
     var trafficHistoryWindow: TrafficHistoryWindow {
-        get { TrafficHistoryWindow(rawValue: self.trafficHistoryWindowMinutes) ?? .oneMinute }
+        get { TrafficHistoryWindow(rawValue: self.trafficHistoryWindowMinutes) ?? .fiveMinutes }
         set {
             guard self.trafficHistoryWindowMinutes != newValue.rawValue else { return }
             self.trafficHistoryWindowMinutes = newValue.rawValue
@@ -428,7 +428,7 @@ final class AppViewModel: ObservableObject {
     @AppStorage("clashbar.proxy.node.hide_unavailable") var hideUnavailableProxyNodes: Bool = false
     /// 只持久化「展示时长」这个偏好本身；曲线数据永远只活在内存里。
     @AppStorage("clashbar.traffic.history.window.minutes") var trafficHistoryWindowMinutes: Int = TrafficHistoryWindow
-        .oneMinute.rawValue
+        .fiveMinutes.rawValue
     let selectedConfigKey = "clashbar.config.selected.filename"
     let legacySelectedConfigKey = "clashbar.config.selected"
     let remoteConfigSourcesKey = "clashbar.config.remote.sources.v1"
