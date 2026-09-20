@@ -8,10 +8,12 @@
 
 **✨ 新增功能 (New Features)**
 
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **流量曲线展示时长可设置**：设置页新增「流量曲线时长」，可选 1 / 5 / 15 / 30 分钟，默认 1 分钟。横轴按真实时间排布，切换时长立即生效。
 - ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **独立版本线**：自 v1.0.0 起独立编号。发布流程只识别 `v1.0.0` 及以上的标签，从上游同步过来的 `v0.x` 一律忽略；手动或推送一个低于 v1.0.0 的标签会在推送前被拒绝，不会留下脏标签。
 
 **🚀 优化改进 (Improvements)**
 
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **流量曲线跨面板开合保留**：此前关闭面板即清空曲线，重新打开要从零开始重新记录。现在采样在内存中保留（进程退出即丢弃，不做持久化），只有内核停止或切换目标机器才重置。状态栏显示速率时流量流本来就还开着，曲线因此可以连续；「仅图标」模式下面板关闭会停掉流量流，恢复后的空档由曲线断开如实表达，而不是把两端强行连成一条直线。
 - ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **发布流程移除 Homebrew 环节**：删除向上游个人 tap 推送 cask 的 `update-formula` 任务。本仓库不提供 Homebrew 安装，DMG 直接从 Releases 下载。该任务原本硬编码了上游的 tap 仓库和一个 fork 里不存在的 `PAT_TOKEN`，在本仓库必然失败。
 - ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **菜单栏状态对账**：打开面板时与显示模型对账一次。此前 `refreshDisplayNow()` 全工程只在构造函数中调用过一次，任何一次漏掉的增量更新都会永久留在菜单栏上。
 - ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **品牌更名为 ClashBarPlus**：应用名、DMG 产物名、文档站与发布说明统一更名。Bundle ID、数据目录 `~/Library/Application Support/clashbar` 与特权助手标签保持不变，因此覆盖安装是原地升级，既有配置、订阅、设置与登录项授权全部保留。
