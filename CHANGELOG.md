@@ -18,4 +18,5 @@
 
 **🐞 修复问题 (Bug Fixes)**
 
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **菜单栏与面板品牌图标退化为 SF Symbol**：较新的 Swift 工具链会把 `Assets.xcassets` 编译成 `Assets.car` 并改用嵌套的 `Contents/Resources` 布局，包内不再存在散装 PNG。原实现只按相对路径拼接查找，四张品牌图会一起落空——菜单栏退化成 `bolt.horizontal.circle.fill`，面板左上角退化成 `paperplane.fill`。现在优先通过资源目录 API 读取，并保留旧版扁平布局的路径查找作为回退。
 - ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **TUN 已开启但菜单栏图标停留在普通运行形态**：内核重启（如断网自动停止后恢复）会让 `isTunEnabled` 在 `false → true` 之间往返。若两次变更落进同一个防抖窗口，排队中的陈旧快照会被画到菜单栏并写入 `lastRenderedKey`；而「仅图标」模式下渲染键只由 `{显示模式, 运行中, TUN}` 构成，此后不会再有事件纠正这次错位。现在延迟重绘改为读取当前显示模型而非排队时捕获的快照，防抖降级为纯粹的限流器；同时在渲染键与已渲染值相同而提前返回时，撤销尚未执行的重绘任务。
