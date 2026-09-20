@@ -760,15 +760,16 @@ private struct LatencySignalBars: View {
         .accessibilityHidden(true)
     }
 
-    /// 越快越高，和颜色同向，所以一眼扫过去高度与色相传达的是同一个结论。
+    /// 柱子高度直接对应延迟数值本身：越慢越高。旁边就印着毫秒数，把它读成一根柱状图
+    /// 才符合直觉——若反过来让「低延迟更高」，数字小的柱子反而更长，两者互相打架。
+    /// 好坏由颜色表达：矮而绿是好，高而红是差，超时按最差处理。
     private func barHeight(_ sample: Int?) -> CGFloat {
         guard let sample else { return Self.placeholderHeight }
         switch LatencyLevel(delay: sample) {
-        case .excellent: return Self.maxHeight
-        case .good: return 10
-        case .fair: return 7.5
-        case .poor: return 5
-        case .timeout: return 3
+        case .excellent: return 5
+        case .good: return 7.5
+        case .fair: return 10
+        case .poor, .timeout: return Self.maxHeight
         }
     }
 

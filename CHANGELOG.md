@@ -13,7 +13,7 @@
 
 **🚀 优化改进 (Improvements)**
 
-- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **延迟信号条按实测结果显示**：此前柱子高度写死为递增阶梯，无论测速多少都长得一样，只有颜色携带信息。现在每根柱子的高度由那一次的延迟决定（越快越高），颜色也由 3 档细分为 4 档（<200ms 绿、<500ms 青、<1000ms 橙、≥1000ms 与超时红），高度与颜色同向，扫一眼即可读出快慢。延迟历史同时由最近 4 次扩展为 5 次，仅存于内存、不做持久化。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **延迟信号条按实测结果显示**：此前柱子高度写死为递增阶梯，无论测速多少都长得一样，只有颜色携带信息。现在每根柱子的高度由那一次的延迟决定（越慢越高，与旁边的毫秒数同向），颜色也由 3 档细分为 4 档（<200ms 绿、<500ms 青、<1000ms 橙、≥1000ms 与超时红），高度与颜色同向，扫一眼即可读出快慢。延迟历史同时由最近 4 次扩展为 5 次，仅存于内存、不做持久化。
 - ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **流量曲线跨面板开合保留**：此前关闭面板即清空曲线，重新打开要从零开始重新记录。现在采样在内存中保留（进程退出即丢弃，不做持久化），只有内核停止或切换目标机器才重置。状态栏显示速率时流量流本来就还开着，曲线因此可以连续；「仅图标」模式下面板关闭会停掉流量流，恢复后的空档由曲线断开如实表达，而不是把两端强行连成一条直线。
 - ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **发布流程移除 Homebrew 环节**：删除向上游个人 tap 推送 cask 的 `update-formula` 任务。本仓库不提供 Homebrew 安装，DMG 直接从 Releases 下载。该任务原本硬编码了上游的 tap 仓库和一个 fork 里不存在的 `PAT_TOKEN`，在本仓库必然失败。
 - ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **菜单栏状态对账**：打开面板时与显示模型对账一次。此前 `refreshDisplayNow()` 全工程只在构造函数中调用过一次，任何一次漏掉的增量更新都会永久留在菜单栏上。
