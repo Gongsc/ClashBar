@@ -6,10 +6,41 @@ struct ClashBarApp: App {
     @NSApplicationDelegateAdaptor(ClashBarAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Settings { EmptyView() }
+        Settings { SettingsSceneHost() }
             .commands {
                 AppCommands(session: self.appDelegate.appViewModel, appDelegate: self.appDelegate)
             }
+    }
+}
+
+/// `Settings` 场景存在的唯一理由是给 `.commands` 找个宿主——菜单命令必须挂在某个 Scene 上，
+/// 而这个应用没有任何真正的窗口。它自己的设置在弹出面板的 System 标签里，⌘, 也已经被
+/// `CommandGroup(replacing: .appSettings)` 重定向过去，所以这个空窗口对用户毫无意义。
+/// 较新 SDK 构建出的版本会在启动时把它显示出来（标题为「<应用名> Settings」的空窗口），
+/// 这里在承载它的窗口出现的那一刻就关掉。
+private struct SettingsSceneHost: View {
+    var body: some View {
+        SettingsWindowCloser()
+    }
+}
+
+private struct SettingsWindowCloser: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        self.closeHostingWindow(of: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        self.closeHostingWindow(of: nsView)
+    }
+
+    /// 视图刚创建时还没挂到窗口上，所以推迟到下一个主线程节拍再取 `window`。
+    /// 对已经关闭的窗口再调一次 `close()` 是无副作用的。
+    private func closeHostingWindow(of view: NSView) {
+        Task { @MainActor in
+            view.window?.close()
+        }
     }
 }
 
