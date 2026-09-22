@@ -6,16 +6,34 @@ struct ClashBarApp: App {
     @NSApplicationDelegateAdaptor(ClashBarAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Settings { EmptyView() }
-            .commands {
-                AppCommands(session: self.appDelegate.appViewModel, appDelegate: self.appDelegate)
-            }
+        Settings {
+            SettingsWindowSuppressor()
+                .frame(width: 0, height: 0)
+        }
+        .commands {
+            AppCommands(session: self.appDelegate.appViewModel, appDelegate: self.appDelegate)
+        }
     }
 }
 
-/// Menu commands have to live in a `Commands` type that observes the session. `App` itself has
-/// no observation, so building them inline froze every `.disabled(...)` and label at their
-/// launch-time values — the core always looked stopped and ⌘E stayed permanently disabled.
+private struct SettingsWindowSuppressor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        SuppressorNSView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class SuppressorNSView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            window.alphaValue = 0
+            window.orderOut(nil)
+            window.close()
+        }
+    }
+}
+
 private struct AppCommands: Commands {
     @ObservedObject var session: AppViewModel
     let appDelegate: ClashBarAppDelegate
@@ -75,8 +93,6 @@ private struct AppCommands: Commands {
 
             Divider()
 
-            // ponytail: KeyEquivalent folds the shift needed to type the character into the
-            // shortcut, so an uppercase "R" here silently means ⌘⇧R. Keep every letter lowercase.
             Button(self.tr("ui.quick.copy_terminal")) { self.session.copyLocalProxyCommand() }
                 .keyboardShortcut("c", modifiers: .command)
 
@@ -129,8 +145,6 @@ private struct AppCommands: Commands {
         (.direct, "ui.mode.direct", "bolt.fill", "3"),
     ]
 
-    /// Menu-bar shortcuts fire with no window on screen, so every one of them confirms itself the
-    /// way ⌘C already did — otherwise a working shortcut looks like a dead key.
     @MainActor
     private func showBanner(symbol: String, title: String, detail: String) {
         self.session.statusItemBanner = StatusItemBanner(

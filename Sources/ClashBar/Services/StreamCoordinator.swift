@@ -109,17 +109,23 @@ final class StreamCoordinator {
                 self.streamWebSocketTasks[key]?.cancel(with: .goingAway, reason: nil)
                 self.streamWebSocketTasks[key] = nil
 
-                guard self.shouldReconnect() else { return }
-                do {
-                    try await Task.sleep(nanoseconds: self.nextReconnectDelayNanoseconds(for: key))
-                } catch {
-                    return
+                while !Task.isCancelled {
+                    let delay = self.shouldReconnect()
+                        ? self.nextReconnectDelayNanoseconds(for: key)
+                        : self.maxDelayNanoseconds
+                    do {
+                        try await Task.sleep(nanoseconds: delay)
+                    } catch {
+                        return
+                    }
+                    if Task.isCancelled {
+                        return
+                    }
+                    if self.shouldReconnect() {
+                        restart()
+                        return
+                    }
                 }
-                if Task.isCancelled {
-                    return
-                }
-                guard self.shouldReconnect() else { return }
-                restart()
                 return
             }
 
@@ -129,15 +135,29 @@ final class StreamCoordinator {
         }
     }
 
+    static func normalizeWebSocketPayload(_ message: URLSessionWebSocketTask.Message) -> Data? {
+        switch message {
+        case let .data(data):
+            guard !data.isEmpty else { return nil }
+            return data
+        case let .string(text):
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed != "null", trimmed != "{}" else { return nil }
+            return Data(trimmed.utf8)
+        @unknown default:
+            return nil
+        }
+    }
+
     private func nextReconnectDelayNanoseconds(for key: String) -> UInt64 {
-        let attempt = self.streamReconnectAttempts[key] ?? 0
-        let result = ComputeNextStreamReconnectDelayUseCase().execute(
-            currentAttempt: attempt,
-            baseDelayNanoseconds: self.baseDelayNanoseconds,
-            maxDelayNanoseconds: self.maxDelayNanoseconds,
-            jitter: Double.random(in: 0.85...1.15))
-        self.streamReconnectAttempts[key] = result.nextAttempt
-        return result.delayNanoseconds
+        let attempt = max(0, self.streamReconnectAttempts[key] ?? 0)
+        let cappedShift = min(attempt, 3)
+        let seconds = min(8, 1 << cappedShift)
+        self.streamReconnectAttempts[key] = min(attempt + 1, 8)
+
+        let base = UInt64(seconds) * self.baseDelayNanoseconds
+        let jittered = UInt64(Double(base) * Double.random(in: 0.85...1.15))
+        return min(self.maxDelayNanoseconds, max(self.baseDelayNanoseconds, jittered))
     }
 
     private func markPayloadReceived(for key: String) {
@@ -149,12 +169,13 @@ final class StreamCoordinator {
         let lastAt = self.streamLastDisconnectLogAt[key]
         let lastMessage = self.streamLastDisconnectLogMessage[key]
 
-        let shouldEmit = ShouldEmitStreamDisconnectLogUseCase().execute(
-            now: now,
-            lastLoggedAt: lastAt,
-            lastLoggedMessage: lastMessage,
-            currentMessage: message,
-            throttleInterval: self.disconnectLogThrottleInterval)
+        let shouldEmit: Bool
+        if let lastAt, let lastMessage {
+            let withinThrottle = now.timeIntervalSince(lastAt) < self.disconnectLogThrottleInterval
+            shouldEmit = !(withinThrottle && lastMessage == message)
+        } else {
+            shouldEmit = true
+        }
 
         if shouldEmit {
             self.streamLastDisconnectLogAt[key] = now

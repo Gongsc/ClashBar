@@ -6,16 +6,21 @@ extension AppViewModel {
         guard self.configDirectoryMonitor == nil else { return }
         guard let directoryURL = self.ensureConfigDirectoryAvailable() else { return }
 
-        _ = self.configRepository.reloadConfigs()
-        self.configFileSignatureSnapshot = Self.configFileSignatureSnapshot(for: self.configRepository.availableConfigs)
+        _ = self.configService.reloadConfigs()
+        self.configFileSignatureSnapshot = Self.configFileSignatureSnapshot(for: self.configService.availableConfigs)
         self.configDirectoryMonitor = ConfigDirectoryMonitor(
             directoryURL: directoryURL,
-            selectedFileURL: self.configRepository.selectedConfig)
+            selectedFileURL: self.configService.selectedConfig)
         { [weak self] in
             Task { @MainActor [weak self] in
                 self?.scheduleConfigDirectoryRefresh()
             }
         }
+    }
+
+    func syncConfigSignatureSnapshotToMonitorBaseline() {
+        guard self.configDirectoryMonitor != nil else { return }
+        self.configFileSignatureSnapshot = Self.configFileSignatureSnapshot(for: self.configService.availableConfigs)
     }
 
     func stopConfigDirectoryMonitoring() {
@@ -31,9 +36,6 @@ extension AppViewModel {
         self.configDirectoryDebounceTask?.cancel()
         self.configDirectoryDebounceTask = Task { [weak self] in
             guard await (try? Task.sleep(nanoseconds: delayNanoseconds)) != nil else { return }
-            // ponytail: release the debounce slot before handling. The core writes into the config
-            // directory while restarting, and that FS event would otherwise cancel *this* task
-            // mid-restart, surfacing as URLError.cancelled on the system-proxy restore.
             self?.configDirectoryDebounceTask = nil
             await self?.handleConfigDirectoryChangesIfNeeded()
         }
@@ -42,7 +44,7 @@ extension AppViewModel {
     private func handleConfigDirectoryChangesIfNeeded() async {
         guard let directoryURL = self.ensureConfigDirectoryAvailable() else { return }
 
-        let previousSelectedPath = self.configRepository.selectedConfig?.path
+        let previousSelectedPath = self.configService.selectedConfig?.path
         let scan = await Task.detached(priority: .utility) {
             let files = ConfigDirectoryManager.scanConfigFiles(in: directoryURL)
             let signatures = Self.configFileSignatureSnapshot(for: files)
@@ -55,7 +57,7 @@ extension AppViewModel {
             current: scan.1)
         var selectedConfigChanged = false
         if !changedFileNames.isEmpty {
-            self.configRepository.applyScannedConfigs(scan.0)
+            self.configService.applyScannedConfigs(scan.0)
             self.configFileSignatureSnapshot = scan.1
             let nextSelectedPath = self.syncSelectedConfigStateForMonitoring()
             self.syncConfigDisplayState()
@@ -120,7 +122,7 @@ extension AppViewModel {
 
     @discardableResult
     private func syncSelectedConfigStateForMonitoring() -> String? {
-        guard let path = self.syncSelectedConfigSelection(self.configRepository.selectedConfig) else {
+        guard let path = self.syncSelectedConfigSelection(self.configService.selectedConfig) else {
             self.selectedConfigName = "-"
             self.defaults.removeObject(forKey: self.selectedConfigKey)
             return nil

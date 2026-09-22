@@ -53,7 +53,7 @@ extension AppViewModel {
 
             let launchController = applyExternalControllerFromSelectedConfigFile(configPath: configPath)
             statusText = "Starting"
-            _ = try await self.coreRepository.start(configPath: configPath, controller: launchController)
+            _ = try await self.processManager.start(configPath: configPath, controller: launchController)
 
             await self.completeCoreBootstrap(
                 configPath: configPath,
@@ -103,7 +103,7 @@ extension AppViewModel {
             disableRuntimeTunBeforeStop: trigger == .networkLoss)
         self.cancelDeferredEditableSettingsOverlaySync()
         cancelProviderRefresh(reason: "stop requested")
-        await self.coreRepository.stop()
+        await self.processManager.stop()
         cancelPolling()
         statusText = "Stopped"
         apiStatus = .unknown
@@ -136,7 +136,7 @@ extension AppViewModel {
                 transitionKind: .restart,
                 disableRuntimeTunBeforeStop: false)
             let settingsOverlay = self.overlayApplyingPendingCoreFeatureRecovery(currentEditableSettingsSnapshot())
-            _ = try await self.coreRepository.restart(configPath: configPath, controller: launchController)
+            _ = try await self.processManager.restart(configPath: configPath, controller: launchController)
             await self.completeCoreBootstrap(
                 configPath: configPath,
                 settingsOverlay: settingsOverlay,
@@ -194,9 +194,9 @@ extension AppViewModel {
 
     func shutdownForTermination() {
         self.prepareForTermination()
-        self.systemProxyRepository.clearBlocking(timeout: 2.0)
-        if coreRepository.isRunning {
-            self.coreRepository.stopImmediately()
+        self.systemProxyService.clearBlocking(timeout: 2.0)
+        if processManager.isRunning {
+            self.processManager.stopImmediately()
         }
     }
 
@@ -269,7 +269,7 @@ extension AppViewModel {
 
     func configValidationFailureDetails(configPath: String) async -> String? {
         do {
-            try await self.coreRepository.validateConfig(configPath: configPath)
+            try await self.processManager.validateConfig(configPath: configPath)
             return nil
         } catch {
             let detailsRaw = self.coreErrorMessage(error).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -286,7 +286,7 @@ extension AppViewModel {
     func restartCoreIfNeededForConfigSwitch(previousPath: String?, nextPath: String?) async {
         guard let nextPath else { return }
         guard previousPath != nextPath else { return }
-        guard coreRepository.isRunning else { return }
+        guard processManager.isRunning else { return }
 
         pendingConfigSwitchOverlaySettings = currentEditableSettingsSnapshot()
         preserveLocalSettingsOnNextSync = true

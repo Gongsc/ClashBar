@@ -32,7 +32,6 @@ enum RulesTypeFilter: String, CaseIterable, Identifiable {
         let normalized = type.trimmedOrEmpty.lowercased()
         guard !normalized.isEmpty else { return self == .other }
 
-        // 判断顺序很重要：rule-set 优先，其次 domain/geosite，再 ip/geoip，否则 other。
         if normalized.contains("rule-set") || normalized.contains("ruleset") {
             return self == .ruleSet
         }
@@ -69,38 +68,55 @@ struct RuleGroup: Equatable, Identifiable {
     }
 }
 
-struct RulesFilter: Equatable {
-    var filterText: String = ""
-    var typeFilter: RulesTypeFilter = .all
-    var policyFilter: RulePolicyOption = .all
-    var groupByPolicy: Bool = false
+struct PresentRulesOutput: Equatable {
+    let rules: [RuleItem]
+    let groups: [RuleGroup]
+    let providerLookup: [String: ProviderDetail]
+    let policyOptions: [RulePolicyOption]
+    let typeCounts: [RulesTypeFilter: Int]
+
+    static let empty = PresentRulesOutput(
+        rules: [], groups: [], providerLookup: [:], policyOptions: [.all], typeCounts: [:])
 }
 
 @MainActor
 final class RulesViewModel: ObservableObject {
-    private let presentRulesUseCase: PresentRulesUseCase
-
     @Published var filterText: String = ""
     @Published var typeFilter: RulesTypeFilter = .all
     @Published var policyFilter: RulePolicyOption = .all
     @Published var groupByPolicy: Bool = false
     @Published private(set) var output: PresentRulesOutput = .empty
 
-    init(presentRulesUseCase: PresentRulesUseCase = PresentRulesUseCase()) {
-        self.presentRulesUseCase = presentRulesUseCase
-    }
+    init() {}
 
     func updateVisibleRules(items: [RuleItem], providers: [String: ProviderDetail]) {
-        let next = self.presentRulesUseCase.execute(
-            items: items,
-            providers: providers,
-            filter: RulesFilter(
-                filterText: self.filterText,
-                typeFilter: self.typeFilter,
-                policyFilter: self.policyFilter,
-                groupByPolicy: self.groupByPolicy))
+        let policyOptions = self.makePolicyOptions(from: items)
+        let keyword = self.filterText.trimmed
+        let policyFilter = self.policyFilter
+        let typeFilter = self.typeFilter
 
-        // 当前选中的策略在新选项里消失时（如刷新换配置），回落到全部（会触发再次刷新）。
+        let base: [RuleItem] = if keyword.isEmpty, policyFilter.isAll {
+            items
+        } else {
+            items.filter { rule in
+                guard policyFilter.isAll || rule.proxy.trimmedOrEmpty == policyFilter.name else { return false }
+                guard keyword.isEmpty || self.searchText(for: rule).localizedStandardContains(keyword) else {
+                    return false
+                }
+                return true
+            }
+        }
+
+        let typeCounts = self.makeTypeCounts(from: base)
+        let filtered = typeFilter == .all ? base : base.filter { typeFilter.matches($0.type) }
+
+        let next = PresentRulesOutput(
+            rules: filtered,
+            groups: self.groupByPolicy ? self.makeGroups(from: filtered) : [],
+            providerLookup: self.makeProviderLookup(from: providers),
+            policyOptions: policyOptions,
+            typeCounts: typeCounts)
+
         if !self.policyFilter.isAll, !next.policyOptions.contains(self.policyFilter) {
             self.policyFilter = .all
         }
@@ -108,5 +124,53 @@ final class RulesViewModel: ObservableObject {
         if next != self.output {
             self.output = next
         }
+    }
+
+    private func makeTypeCounts(from rules: [RuleItem]) -> [RulesTypeFilter: Int] {
+        var counts: [RulesTypeFilter: Int] = [.all: rules.count]
+        for rule in rules {
+            for filter in RulesTypeFilter.allCases where filter != .all && filter.matches(rule.type) {
+                counts[filter, default: 0] += 1
+                break
+            }
+        }
+        return counts
+    }
+
+    private func makeGroups(from rules: [RuleItem]) -> [RuleGroup] {
+        var buckets: [String: [RuleItem]] = [:]
+        for rule in rules {
+            buckets[rule.proxy.trimmedOrEmpty, default: []].append(rule)
+        }
+
+        return buckets.map { RuleGroup(policy: $0.key, rules: $0.value) }.sorted { lhs, rhs in
+            lhs.rules.count != rhs.rules.count
+                ? lhs.rules.count > rhs.rules.count
+                : lhs.policy.localizedStandardCompare(rhs.policy) == .orderedAscending
+        }
+    }
+
+    private func searchText(for rule: RuleItem) -> String {
+        "\(rule.payload.trimmedOrEmpty) \(rule.type.trimmedOrEmpty) \(rule.proxy.trimmedOrEmpty)"
+    }
+
+    private func makePolicyOptions(from items: [RuleItem]) -> [RulePolicyOption] {
+        let names = Set(items.compactMap(\.proxy.trimmedNonEmpty))
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        return [.all] + names.map { RulePolicyOption(name: $0) }
+    }
+
+    private func makeProviderLookup(from providers: [String: ProviderDetail]) -> [String: ProviderDetail] {
+        var map: [String: ProviderDetail] = [:]
+        map.reserveCapacity(providers.count * 2)
+
+        for (key, detail) in providers {
+            map[key.lowercased()] = detail
+            if let name = detail.name.trimmedNonEmpty {
+                map[name.lowercased()] = detail
+            }
+        }
+
+        return map
     }
 }

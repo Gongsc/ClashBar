@@ -4,25 +4,34 @@ enum AppResourceBundleLocator {
     private static let moduleBundleName = "ClashBar_ClashBar.bundle"
 
     static func moduleBundle() -> Bundle? {
+        let spmBundle = Bundle.module
+        if spmBundle.resourceURL != nil {
+            return spmBundle
+        }
         for url in self.candidateModuleBundleURLs() {
             if let bundle = Bundle(url: url) {
                 return bundle
             }
         }
-        return nil
+        return spmBundle
     }
 
     static func candidateBundles() -> [Bundle] {
-        var bundles: [Bundle] = []
-        if let module = moduleBundle() {
+        var bundles: [Bundle] = [Bundle.module]
+        if let module = moduleBundle(), module.bundleURL != Bundle.module.bundleURL {
             bundles.append(module)
         }
-        bundles.append(Bundle.main)
+        if !bundles.contains(where: { $0.bundleURL == Bundle.main.bundleURL }) {
+            bundles.append(Bundle.main)
+        }
         return bundles
     }
 
     static func candidateResourceRoots() -> [URL] {
         var roots: [URL] = []
+        if let spmRoot = Bundle.module.resourceURL {
+            roots.append(spmRoot)
+        }
         if let module = moduleBundle(), let moduleRoot = module.resourceURL {
             roots.append(moduleRoot)
         }
@@ -30,6 +39,24 @@ enum AppResourceBundleLocator {
             roots.append(mainRoot)
         }
         return self.deduplicated(roots)
+    }
+
+    private static let candidateConfigTemplateRelativePaths = [
+        "ConfigTemplates/ClashBar.yaml",
+        "Resources/ConfigTemplates/ClashBar.yaml",
+        "ClashBar.yaml",
+    ]
+
+    static func bundledConfigTemplateURL(fileManager: FileManager = .default) -> URL? {
+        for root in self.candidateResourceRoots() {
+            for relativePath in self.candidateConfigTemplateRelativePaths {
+                let candidate = root.appendingPathComponent(relativePath, isDirectory: false)
+                if fileManager.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
+            }
+        }
+        return nil
     }
 
     private static func candidateModuleBundleURLs() -> [URL] {

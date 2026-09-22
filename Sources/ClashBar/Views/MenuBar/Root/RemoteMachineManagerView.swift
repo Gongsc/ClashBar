@@ -210,7 +210,7 @@ private struct RemoteMachineRowView: View {
                 HStack(spacing: rowContentSpacing) {
                     Image(systemName: "network")
                         .font(.app(size: T.FontSize.body, weight: .semibold))
-                        .foregroundStyle(self.statusTint(status))
+                        .foregroundStyle(self.machineStatusTint(status))
                         .frame(width: rowIconSize)
 
                     VStack(alignment: .leading, spacing: T.space4) {
@@ -302,21 +302,8 @@ private struct RemoteMachineRowView: View {
                 .controlSize(.mini)
         } else {
             Circle()
-                .fill(self.statusTint(status))
+                .fill(self.machineStatusTint(status))
                 .frame(width: T.space6, height: T.space6)
-        }
-    }
-
-    private func statusTint(_ status: MachineConnectionStatus) -> Color {
-        switch status {
-        case .unknown:
-            self.nativeSecondaryLabel
-        case .checking:
-            self.nativeWarning.opacity(T.Opacity.solid)
-        case .connected:
-            self.nativePositive.opacity(T.Opacity.solid)
-        case .failed:
-            self.nativeCritical.opacity(T.Opacity.solid)
         }
     }
 }

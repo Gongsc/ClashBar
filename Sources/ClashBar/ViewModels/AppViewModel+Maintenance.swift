@@ -44,10 +44,6 @@ extension AppViewModel {
         }
     }
 
-    func refreshActiveTab() async {
-        await refreshForActivatedTab(activeMenuTab)
-    }
-
     var isCoreUpgradeInFlight: Bool {
         if case .running = self.coreUpgradeState {
             return true

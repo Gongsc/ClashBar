@@ -10,11 +10,6 @@ struct ConnectionsSnapshot: Decodable, Equatable {
         case connections
     }
 
-    init(connections: [ConnectionSummary], totalCount: Int? = nil) {
-        self.connections = connections
-        self.totalCount = totalCount ?? connections.count
-    }
-
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         guard var connectionsContainer = try? container.nestedUnkeyedContainer(forKey: .connections) else {
@@ -66,15 +61,7 @@ struct ConnectionSummary: Codable, Equatable, Identifiable {
 
     static func parseTimestamp(_ start: String?) -> TimeInterval? {
         guard let value = start?.trimmingCharacters(in: .whitespaces), !value.isEmpty else { return nil }
-        let withFractional = ISO8601DateFormatter()
-        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = withFractional.date(from: value) {
-            return date.timeIntervalSince1970
-        }
-
-        let basic = ISO8601DateFormatter()
-        basic.formatOptions = [.withInternetDateTime]
-        return basic.date(from: value)?.timeIntervalSince1970
+        return ValueFormatter.parseISO8601Date(value)?.timeIntervalSince1970
     }
 
     init(

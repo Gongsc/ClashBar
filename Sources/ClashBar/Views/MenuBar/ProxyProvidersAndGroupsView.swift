@@ -489,27 +489,6 @@ extension ProxyTabView {
         }
     }
 
-    @ViewBuilder
-    func popoverNodesList<Node: Hashable>(
-        _ nodes: [Node],
-        @ViewBuilder row: @escaping (Node) -> some View) -> some View
-    {
-        if nodes.isEmpty {
-            Text(tr("ui.common.na"))
-                .font(.app(size: T.FontSize.caption, weight: .regular))
-                .foregroundStyle(nativeSecondaryLabel)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, T.space6)
-                .padding(.vertical, T.space4)
-        } else {
-            VStack(spacing: 0) {
-                ForEach(nodes, id: \.self) { node in
-                    row(node)
-                }
-            }
-        }
-    }
-
     func orderedUniqueNames(_ names: [String]) -> [String] {
         var seen: Set<String> = []
         var ordered: [String] = []
@@ -737,7 +716,6 @@ private struct LatencySignalBars: View {
     private static let barSpacing: CGFloat = 1.5
     private static let heights: [CGFloat] = [4, 7, 10, 13]
 
-    /// Samples are right-aligned, so the last bar is both the tallest and the newest.
     private var firstVisibleIndex: Int {
         self.showsHistory ? 0 : Self.barCount - 1
     }
@@ -755,7 +733,6 @@ private struct LatencySignalBars: View {
     }
 
     private func barColor(at index: Int) -> Color {
-        // Align samples to the right (newest under the tallest bar).
         let offset = Self.barCount - self.samples.count
         let sampleIndex = index - offset
         guard sampleIndex >= 0, sampleIndex < self.samples.count else {

@@ -28,7 +28,7 @@ struct LogsTabView: TranslatingView {
             if logs.isEmpty {
                 emptyCard(self.tr("ui.empty.logs"))
             } else {
-                MeasurementAwareVStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     SeparatedForEach(data: logs, id: \.id, separator: nativeSeparator) { log in
                         self.logEntryRow(log)
                             .padding(.horizontal, T.space4)
@@ -53,21 +53,19 @@ struct LogsTabView: TranslatingView {
     }
 
     func logsControlCard(filteredCount: Int) -> some View {
-        VStack(alignment: .leading, spacing: T.space4) {
+        self.tabControlCard {
             HStack(spacing: T.space6) {
                 self.logsSourceFilterButtons
 
                 Spacer(minLength: 0)
 
+                self.coreLogLevelMenu
+
                 self.fractionSummaryBadge(current: filteredCount, total: self.logsStore.errorLogs.count)
             }
             self.logsSecondaryControlRow
-            TextField(self.tr("ui.placeholder.search_logs"), text: self.$viewModel.searchText)
-                .textFieldStyle(.roundedBorder)
-                .font(.app(size: T.FontSize.body, weight: .regular))
-                .foregroundStyle(nativePrimaryLabel)
+            self.filterTextField(self.tr("ui.placeholder.search_logs"), text: self.$viewModel.searchText)
         }
-        .menuRowPadding(vertical: T.space4)
     }
 
     var logsSecondaryControlRow: some View {
@@ -111,6 +109,42 @@ struct LogsTabView: TranslatingView {
             itemSelected: { self.viewModel.selectedSources.contains($0) },
             toggleItem: { self.viewModel.toggleSource($0) }))
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var coreLogLevelMenu: some View {
+        let current = ConfigLogLevel(rawValue: self.appViewModel.stringValue(for: .logLevel)) ?? .info
+        return Menu {
+            ForEach(ConfigLogLevel.allCases, id: \.rawValue) { level in
+                Button {
+                    Task { await self.appViewModel.applyEditableCoreSetting(.logLevel, to: level.rawValue) }
+                } label: {
+                    if current == level {
+                        Label(level.rawValue, systemImage: "checkmark")
+                    } else {
+                        Text(level.rawValue)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: T.space2) {
+                Image(systemName: "text.alignleft")
+                Text(current.rawValue)
+                Image(systemName: "chevron.down")
+                    .font(.app(size: T.FontSize.statusBar - 2, weight: .semibold))
+                    .foregroundStyle(nativeTertiaryLabel)
+            }
+            .font(.app(size: T.FontSize.caption, weight: .medium))
+            .foregroundStyle(nativeSecondaryLabel)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, T.space6)
+            .padding(.vertical, T.space2)
+            .background(self.nativeBadgeCapsule())
+            .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .help(self.tr("ui.settings.log_level"))
     }
 
     var logsLevelFilterButtons: some View {

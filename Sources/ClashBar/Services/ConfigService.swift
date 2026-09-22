@@ -183,7 +183,8 @@ final class ConfigDirectoryManager {
 struct ConfigImportService {
     private let maxRemoteConfigBytes = 5 * 1024 * 1024
 
-    func writeConfigData(_ data: Data, to targetURL: URL) throws {
+    @discardableResult
+    func writeConfigData(_ data: Data, to targetURL: URL) throws -> Bool {
         guard !data.isEmpty else {
             throw NSError(
                 domain: "ClashBar.ConfigImport",
@@ -203,7 +204,12 @@ struct ConfigImportService {
                 userInfo: [NSLocalizedDescriptionKey: message])
         }
 
+        if let existing = try? Data(contentsOf: targetURL), existing == data {
+            return false
+        }
+
         try data.write(to: targetURL, options: .atomic)
+        return true
     }
 
     private func validateClashConfigData(_ data: Data) -> Bool {
@@ -301,9 +307,9 @@ struct ConfigImportService {
 }
 
 @MainActor
-final class DefaultConfigRepository: ConfigRepository {
-    private let configManager: ConfigDirectoryManager
-    private let configImportService: ConfigImportService
+final class ConfigService {
+    let configManager: ConfigDirectoryManager
+    let configImportService: ConfigImportService
 
     init(
         configManager: ConfigDirectoryManager,
@@ -346,7 +352,8 @@ final class DefaultConfigRepository: ConfigRepository {
         self.configManager.applyScannedConfigs(files)
     }
 
-    func writeConfigData(_ data: Data, to targetURL: URL) throws {
+    @discardableResult
+    func writeConfigData(_ data: Data, to targetURL: URL) throws -> Bool {
         try self.configImportService.writeConfigData(data, to: targetURL)
     }
 

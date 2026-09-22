@@ -485,16 +485,7 @@ struct ProxyTabView: TranslatingView {
 
             self.systemProxyQuickToggleRow
 
-            self.quickToggleRow(
-                title: self.tr("ui.quick.tun_mode"),
-                symbol: "shield.lefthalf.filled",
-                foreground: nativePositive,
-                isDisabled: !self.appViewModel.isTunToggleEnabled,
-                isOn: Binding(
-                    get: { self.appViewModel.isTunEnabled },
-                    set: { value in
-                        Task { await self.appViewModel.toggleTunMode(value) }
-                    }))
+            self.tunModeQuickToggleRow
 
             self.quickRowContent(
                 title: self.tr("ui.quick.copy_terminal"),
@@ -692,25 +683,74 @@ struct ProxyTabView: TranslatingView {
         self.appViewModel.isSystemProxyUsingRemoteCore
     }
 
-    func quickToggleRow(
-        title: String,
-        symbol: String,
-        foreground: Color,
-        isDisabled: Bool,
-        isOn: Binding<Bool>) -> some View
-    {
+    static let tunStackOptions = ["system", "gvisor", "mixed", "mips"]
+
+    var tunModeQuickToggleRow: some View {
         self.quickRowContent(
-            title: title,
-            symbol: symbol,
-            foreground: foreground,
-            trailingWidth: 50)
+            title: self.tr("ui.quick.tun_mode"),
+            symbol: "shield.lefthalf.filled",
+            foreground: nativePositive,
+            trailingFitsContent: true)
         {
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .disabled(isDisabled)
+            HStack(spacing: T.space4) {
+                HStack(spacing: T.space2) {
+                    ForEach(Self.tunStackOptions, id: \.self) { option in
+                        self.tunStackChip(option)
+                    }
+                }
+                Toggle("", isOn: Binding(
+                    get: { self.appViewModel.isTunEnabled },
+                    set: { value in
+                        Task { await self.appViewModel.toggleTunMode(value) }
+                    }))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .disabled(!self.appViewModel.isTunToggleEnabled)
+            }
         }
+    }
+
+    func tunStackChip(_ option: String) -> some View {
+        let active = self.appViewModel.isTunEnabled
+            && self.appViewModel.tunStack?.caseInsensitiveCompare(option) == .orderedSame
+        let mipsUnsupported = option.caseInsensitiveCompare("mips") == .orderedSame
+            && !self.appViewModel.isMipsStackSupported
+        let enabled = self.appViewModel.isTunToggleEnabled && !mipsUnsupported
+        let hint = mipsUnsupported
+            ? self.tr("app.tun.mips_requires_upgrade", AppViewModel.mipsStackMinimumCoreVersion)
+            : self.tr("ui.quick.tun_stack_switch_hint")
+        let fill = active ? self.nativePositive.opacity(T.Opacity.tint) : self.nativeBadgeFill
+        let border = active
+            ? self.nativePositive.opacity(0.18)
+            : self.nativeControlBorder.opacity(0.42)
+        let foreground = active ? self.nativePositive.opacity(T.Opacity.solid) : self.nativeSecondaryLabel
+
+        let activate = {
+            guard enabled else { return }
+            Task { await self.appViewModel.selectTunStack(option) }
+        }
+
+        return Text(option)
+            .font(.app(size: T.FontSize.caption, weight: active ? .semibold : .medium))
+            .foregroundStyle(foreground)
+            .lineLimit(1)
+            .padding(.horizontal, T.space4)
+            .padding(.vertical, T.space2)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(fill)
+                    .overlay {
+                        Capsule(style: .continuous)
+                            .stroke(border, lineWidth: T.stroke)
+                    }
+            }
+            .contentShape(Capsule(style: .continuous))
+            .opacity(enabled ? 1 : 0.5)
+            .onTapGesture(count: 2, perform: activate)
+            .help(hint)
+            .accessibilityLabel(option)
+            .accessibilityHint(hint)
     }
 
     func quickIcon(symbol: String, foreground: Color) -> some View {

@@ -4,6 +4,33 @@ import ProxyHelperShared
 import Security
 import ServiceManagement
 
+enum SystemProxyHelperRegistrationState: Equatable, Sendable {
+    case enabled
+    case requiresApproval
+    case notRegistered
+    case unavailable
+}
+
+enum SystemProxyHelperFailureReason: String, Equatable, Sendable {
+    case backgroundActivityDisabled
+    case helperNotRegistered
+    case helperStartTimedOut
+    case helperConnectionFailed
+    case helperOperationFailed
+    case appNotInApplications
+    case helperNotBundled
+    case signatureMismatch
+    case unknown
+}
+
+struct SystemProxyHelperHealthSnapshot: Equatable, Sendable {
+    let registrationState: SystemProxyHelperRegistrationState
+    let backgroundActivityAllowed: Bool
+    let processRunning: Bool
+    let failureReason: SystemProxyHelperFailureReason?
+    let rawMessage: String?
+}
+
 enum SystemProxyServiceError: LocalizedError {
     case invalidHost
     case invalidPort
@@ -121,7 +148,7 @@ struct SystemProxyService {
         }
     }
 
-    func applySystemProxy(enabled: Bool, host: String, ports: SystemProxyPorts) async throws {
+    func apply(enabled: Bool, host: String, ports: SystemProxyPorts) async throws {
         try self.validateHost(host)
         try await self.ensureHelperReadyForUse()
 
@@ -142,12 +169,12 @@ struct SystemProxyService {
         }
     }
 
-    func isSystemProxyEnabled() async throws -> Bool {
+    func isEnabled() async throws -> Bool {
         try await self.ensureHelperReadyForUse()
         return try await self.invokeStateQuery()
     }
 
-    func readSystemProxyActiveDisplay() async throws -> String? {
+    func readActiveDisplay() async throws -> String? {
         try await self.ensureHelperReadyForUse()
         guard let target = try await self.invokeActiveTargetQuery() else {
             return nil
@@ -208,7 +235,7 @@ struct SystemProxyService {
         }
     }
 
-    func isSystemProxyConfigured(host: String, ports: SystemProxyPorts) async throws -> Bool {
+    func isConfigured(host: String, ports: SystemProxyPorts) async throws -> Bool {
         try self.validateHost(host)
         let resolvedPorts = try self.validateAndResolvePorts(ports, requiresEnabledPort: true)
         try await self.ensureHelperReadyForUse()
@@ -718,7 +745,7 @@ struct SystemProxyService {
         }
     }
 
-    func clearSystemProxyBlocking(timeout: TimeInterval = 2.0) {
+    func clearBlocking(timeout: TimeInterval = 2.0) {
         let semaphore = DispatchSemaphore(value: 0)
 
         DispatchQueue.global(qos: .userInitiated).async { [self] in
@@ -748,50 +775,5 @@ struct SystemProxyService {
         connection.remoteObjectInterface = NSXPCInterface(with: ProxyHelperProtocol.self)
         connection.activate()
         return connection
-    }
-}
-
-@MainActor
-final class DefaultSystemProxyRepository: SystemProxyRepository {
-    private let service: SystemProxyService
-
-    init(service: SystemProxyService) {
-        self.service = service
-    }
-
-    func apply(enabled: Bool, host: String, ports: SystemProxyPorts) async throws {
-        try await self.service.applySystemProxy(enabled: enabled, host: host, ports: ports)
-    }
-
-    func isEnabled() async throws -> Bool {
-        try await self.service.isSystemProxyEnabled()
-    }
-
-    func readActiveDisplay() async throws -> String? {
-        try await self.service.readSystemProxyActiveDisplay()
-    }
-
-    func readExceptionsList() async throws -> [String] {
-        try await self.service.readExceptionsList()
-    }
-
-    func setExceptionsList(_ exceptions: [String]) async throws {
-        try await self.service.setExceptionsList(exceptions)
-    }
-
-    func readHelperHealthSnapshot() async -> SystemProxyHelperHealthSnapshot {
-        await self.service.readHelperHealthSnapshot()
-    }
-
-    func isConfigured(host: String, ports: SystemProxyPorts) async throws -> Bool {
-        try await self.service.isSystemProxyConfigured(host: host, ports: ports)
-    }
-
-    func warmUpHelperIfPossible() async {
-        await self.service.warmUpHelperIfPossible()
-    }
-
-    func clearBlocking(timeout: TimeInterval = 2.0) {
-        self.service.clearSystemProxyBlocking(timeout: timeout)
     }
 }

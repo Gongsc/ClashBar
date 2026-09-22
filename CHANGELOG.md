@@ -1,3 +1,33 @@
+## v0.3.4
+
+![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v0.3.4-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
+
+> 本次更新在 **架构瘦身与窗口行为收敛** 的基础上，补齐了一批日常可感知的体验改进：TUN 协议栈支持双击直接切换（含新的 `mips` 栈选项）、日志面板新增等级切换、状态栏流量曲线保留后台历史、远程订阅内容未变化时跳过重载。工程侧删除了 Repositories 与 UseCases 两层「单一实现」的间接抽象，把逻辑收敛回 Services 与 AppViewModel，减少约 500 行冗余胶水代码而不改变外部行为；同时新增窗口抑制逻辑，彻底禁用 macOS 的窗口状态恢复，避免这个纯菜单栏 App 在启动或系统恢复会话后弹出多余的空白窗口。
+
+### 📝 更新日志 (Changelog)
+
+**✨ 新增功能 (New Features)**
+
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **TUN 协议栈双击切换**：Proxy 快捷区的 TUN 协议栈 chip 新增双击入口，无论当前 TUN 是否已开，双击某个协议栈即以该栈开启 TUN（`enable`+`stack` 原子 PATCH，不再回落 `mixed`）；同栈且已开则跳过，关闭仍由行尾开关负责，切换成功后写入「TUN 协议栈已切换为 %@」日志并附悬停/无障碍提示。协议栈选项新增 `mips`（`system` / `gvisor` / `mixed` / `mips`）。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **mips 协议栈内核版本守卫**：`mips` 协议栈需要 Mihomo v1.19.31 及以上内核；当前内核低于该版本（或版本无法解析）时，`mips` chip 自动置灰、悬停提示「需升级内核」，点击不会真正下发切换，运行中的 TUN 协议栈保持不变，仅弹出状态栏横幅并记录一条 warning 日志引导升级。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **日志面板等级切换**：Logs 页新增日志等级切换——客户端侧提供按等级筛选的多选 chip（不选即显示全部），仅过滤面板展示内容；同时提供直接调整 Mihomo 内核 `log-level` 的菜单（`ConfigLogLevel` 全部取值，当前值打勾），从源头控制内核输出的日志详细程度。
+
+**🚀 优化改进 (Improvements)**
+
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **流量曲线保留后台历史**：状态栏流量 sparkline 改为后台持续采样、面板关闭时不再清空历史曲线（仅重置累计总量）；重新打开菜单时直接显示已有趋势曲线，不再每次从零开始爬升。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **远程订阅内容未变时跳过重载**：远程配置下载后按内容比对，若与磁盘现有文件完全一致则不写盘、也不刷新状态或重载内核（`writeConfigData` 返回是否真正写入，仅在写入时触发 reload），避免相同订阅内容触发无意义的内核 reload。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **移除 Repositories / UseCases 间接层**：删除全部只有单一实现的 Repository 与 UseCase 包装类型，把对应逻辑内联回 Config / Core / MihomoAPI / SystemProxy / Tun 等 Services 以及 AppViewModel 各扩展；净减约 500 行胶水代码，调用链更短，外部行为保持不变。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **窗口状态恢复关闭**：注册 `NSQuitAlwaysKeepsWindows=false`、`applicationSupportsSecureRestorableState=false`，并对 `applicationShouldOpenUntitledFile` / `reopen` 做拦截，杜绝这个菜单栏 App 因系统会话恢复而残留的无用窗口。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **日志来源筛选文案精简**：日志来源筛选项「全部来源」精简为「全部」（英文对应 `All`），与其它筛选 chip 的措辞长度对齐。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **品牌图标资源更新**：重新导出运行 / 休眠 / TUN 状态品牌图标与文档站 Logo 资源。
+
+**🐞 修复问题 (Bug Fixes)**
+
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **启动/恢复后弹出空白窗口**：新增窗口抑制逻辑，在启动、激活及窗口成为 key/main 时排除非面板窗口（跳过 `NSPanel`、StatusBar / MenuBar / Popover / Alert / 全屏过渡窗口与 sheet），把系统会话恢复或 SwiftUI `Settings` 场景产生的空白窗口即时 `orderOut` + `close`，不再有多余窗口一闪而过或停留。
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **打包脚本 `format_bytes` 静默失效**：修复打包脚本中 awk 字节格式化误用保留字 `index` 作为循环变量、在部分 awk 实现下不报错也不换算单位的问题，改用 `idx` 变量。
+
+---
+
 ## v0.3.3
 
 ![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v0.3.3-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)

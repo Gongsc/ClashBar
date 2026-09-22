@@ -2,14 +2,6 @@ import Foundation
 
 @MainActor
 extension AppViewModel {
-    private var normalizeWebSocketPayloadUseCase: NormalizeWebSocketPayloadUseCase {
-        NormalizeWebSocketPayloadUseCase()
-    }
-
-    private var decodeStreamLogPayloadUseCase: DecodeStreamLogPayloadUseCase {
-        DecodeStreamLogPayloadUseCase()
-    }
-
     enum StreamKind: CaseIterable, Hashable {
         case traffic
         case memory
@@ -41,7 +33,7 @@ extension AppViewModel {
             if self.networkReachabilityStatus == .offline {
                 return false
             }
-            return self.isRemoteTarget || self.coreRepository.isRunning
+            return self.isRemoteTarget || self.processManager.isRunning
         }
         streamCoordinator.onDisconnect = { [weak self] key, message in
             guard let self else { return }
@@ -87,7 +79,7 @@ extension AppViewModel {
             },
             onPayload: onPayload,
             normalizePayload: { message in
-                NormalizeWebSocketPayloadUseCase().execute(message: message)
+                StreamCoordinator.normalizeWebSocketPayload(message)
             })
     }
 
@@ -226,18 +218,8 @@ extension AppViewModel {
 
     private func applyTrafficSnapshot(_ snapshot: TrafficSnapshot) {
         self.traffic = snapshot
-        guard self.isPanelPresented else {
-            if !self.trafficHistoryUp.isEmpty
-                || !self.trafficHistoryDown
-                .isEmpty
-                || self.displayUpTotal != 0 || self.displayDownTotal != 0
-                || self.lastTrafficSampleAt != nil
-            {
-                self.clearTrafficPresentationHistory()
-            }
-            return
-        }
         self.appendTrafficHistory(up: snapshot.up, down: snapshot.down)
+        guard self.isPanelPresented else { return }
         self.updateTrafficTotals(from: snapshot)
     }
 
@@ -259,10 +241,6 @@ extension AppViewModel {
         }
     }
 
-    func normalizedWebSocketPayload(from message: URLSessionWebSocketTask.Message) -> Data? {
-        self.normalizeWebSocketPayloadUseCase.execute(message: message)
-    }
-
     func startDecodableStream<Payload: Decodable>(
         kind: StreamKind,
         makeWebSocket: @escaping (MihomoAPIService) throws -> URLSessionWebSocketTask,
@@ -282,7 +260,31 @@ extension AppViewModel {
     }
 
     func decodeLogLinePayload(_ payload: Data) -> (level: String, message: String)? {
-        self.decodeStreamLogPayloadUseCase.execute(
-            payload: payload, decoder: self.streamJSONDecoder)
+        if let log = try? self.streamJSONDecoder.decode(LogLine.self, from: payload) {
+            let level = (log.type?.isEmpty == false) ? (log.type ?? "info") : "info"
+            let message = log.payload?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !message.isEmpty {
+                return (level: level, message: message)
+            }
+        }
+
+        if let response = try? self.streamJSONDecoder.decode(LogsResponse.self, from: payload),
+           let first = response.logs?.first
+        {
+            let level = (first.type?.isEmpty == false) ? (first.type ?? "info") : "info"
+            let message = first.payload?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !message.isEmpty {
+                return (level: level, message: message)
+            }
+        }
+
+        if let text = String(data: payload, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !text.isEmpty
+        {
+            return (level: "info", message: text)
+        }
+
+        return nil
     }
 }

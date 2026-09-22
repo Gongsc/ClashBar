@@ -2,37 +2,50 @@ import AppKit
 
 @MainActor
 enum BrandIcon {
-    private static let logoRelativePaths = [
-        "Assets.xcassets/BrandLogo.imageset/logo.png",
-        "Resources/Assets.xcassets/BrandLogo.imageset/logo.png",
-    ]
-    private static let runRelativePaths = [
-        "Assets.xcassets/BrandRun.imageset/icon-run.png",
-        "Resources/Assets.xcassets/BrandRun.imageset/icon-run.png",
-    ]
-    private static let sleepRelativePaths = [
-        "Assets.xcassets/BrandSleep.imageset/icon-sleep.png",
-        "Resources/Assets.xcassets/BrandSleep.imageset/icon-sleep.png",
-    ]
-    private static let tunRelativePaths = [
-        "Assets.xcassets/BrandTun.imageset/icon-tun.png",
-        "Resources/Assets.xcassets/BrandTun.imageset/icon-tun.png",
-    ]
+    static let image: NSImage? = loadIcon(named: "BrandLogo", fallbackFileName: "logo.png")
+    static let runImage: NSImage? = loadIcon(named: "BrandRun", fallbackFileName: "icon-run.png")
+    static let sleepImage: NSImage? = loadIcon(named: "BrandSleep", fallbackFileName: "icon-sleep.png")
+    static let tunImage: NSImage? = loadIcon(named: "BrandTun", fallbackFileName: "icon-tun.png")
 
-    static let image: NSImage? = loadImage(relativePaths: logoRelativePaths)
-    static let runImage: NSImage? = loadImage(relativePaths: runRelativePaths)
-    static let sleepImage: NSImage? = loadImage(relativePaths: sleepRelativePaths)
-    static let tunImage: NSImage? = loadImage(relativePaths: tunRelativePaths)
+    private static func loadIcon(named name: String, fallbackFileName: String) -> NSImage? {
+        if let image = Bundle.module.image(forResource: NSImage.Name(name)) {
+            return image
+        }
 
-    private static func loadImage(relativePaths: [String]) -> NSImage? {
         for bundle in AppResourceBundleLocator.candidateBundles() {
-            for relativePath in relativePaths {
+            if let image = bundle.image(forResource: NSImage.Name(name)) {
+                return image
+            }
+        }
+
+        if let image = NSImage(named: NSImage.Name(name)) {
+            return image
+        }
+
+        let candidateRelativePaths = [
+            "Assets.xcassets/\(name).imageset/\(fallbackFileName)",
+            "Resources/Assets.xcassets/\(name).imageset/\(fallbackFileName)",
+            fallbackFileName,
+        ]
+
+        for root in AppResourceBundleLocator.candidateResourceRoots() {
+            for relativePath in candidateRelativePaths {
+                let url = root.appendingPathComponent(relativePath, isDirectory: false)
+                if let image = NSImage(contentsOf: url) {
+                    return image
+                }
+            }
+        }
+
+        for bundle in AppResourceBundleLocator.candidateBundles() {
+            for relativePath in candidateRelativePaths {
                 let url = bundle.bundleURL.appendingPathComponent(relativePath, isDirectory: false)
                 if let image = NSImage(contentsOf: url) {
                     return image
                 }
             }
         }
+
         return nil
     }
 }

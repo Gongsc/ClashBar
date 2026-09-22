@@ -9,7 +9,7 @@
 "ui.log_filter.info" = "Info";
 "ui.log_filter.warning" = "Warning";
 "ui.log_filter.error" = "Error";
-"ui.log_source.all" = "All Sources";
+"ui.log_source.all" = "All";
 "ui.log_source.clashbar" = "ClashBar";
 "ui.log_source.mihomo" = "Mihomo";
 
@@ -77,6 +77,7 @@
 "ui.quick.switch_config" = "Switch Config";
 "ui.quick.system_proxy" = "System Proxy";
 "ui.quick.tun_mode" = "TUN Mode";
+"ui.quick.tun_stack_switch_hint" = "Double-click to switch TUN stack";
 "ui.quick.copy_terminal" = "Copy Terminal Command";
 "ui.quick.copy_terminal_current_endpoint" = "Copy Current Endpoint Command";
 "ui.quick.reload_config_list" = "Reload Config List";
@@ -272,6 +273,7 @@
 "app.tun.error.permission_verify_failed" = "TUN permissions were not applied successfully.";
 "app.tun.error.runtime_state_mismatch" = "TUN mode did not take effect after core restart.";
 "app.tun.error.patch_failed" = "Failed to patch TUN runtime config: %@";
+"app.tun.mips_requires_upgrade" = "The mips stack requires mihomo core v%@ or newer. Please upgrade the core first.";
 "app.config.remote_import.prompt" = "Enter the subscription URL and file name.";
 "app.config.import.overwrite.title" = "Config already exists: %@";
 "app.config.import.overwrite.message" = "Do you want to overwrite the existing config file?";
@@ -353,6 +355,7 @@
 "log.system_proxy.startup_repair_failed" = "Startup system proxy check failed: %@";
 "log.system_proxy.helper_failed" = "System proxy helper unhealthy: %@";
 "log.tun.toggled" = "TUN mode %@";
+"log.tun.stack_changed" = "TUN stack switched to %@";
 "log.tun.enabled" = "enabled";
 "log.tun.disabled" = "disabled";
 "log.tun.toggle_failed" = "TUN mode toggle failed: %@";
@@ -365,8 +368,6 @@
 "log.config.changed_restart" = "Config changed, restarting core";
 "log.providers.fetch_proxy_failed" = "Providers refresh: fetch proxy providers failed: %@";
 "log.providers.fetch_rule_failed" = "Providers refresh: fetch rule providers failed: %@";
-"log.providers.config_reload_success" = "Providers refresh: config force reload success";
-"log.providers.config_reload_failed" = "Providers refresh: config force reload failed: %@";
 "log.providers.proxy_update_failed" = "Providers refresh: proxy provider update failed (%@): %@";
 "log.providers.rule_update_failed" = "Providers refresh: rule provider update failed (%@): %@";
 "log.providers.api_unavailable" = "Providers refresh skipped: API unavailable (%@)";

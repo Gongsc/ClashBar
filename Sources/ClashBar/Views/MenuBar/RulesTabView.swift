@@ -93,7 +93,7 @@ struct RulesTabView: TranslatingView {
     }
 
     var rulesControlCard: some View {
-        VStack(alignment: .leading, spacing: T.space4) {
+        self.tabControlCard {
             HStack(spacing: T.space4) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: T.space4) {
@@ -110,15 +110,10 @@ struct RulesTabView: TranslatingView {
             }
 
             HStack(spacing: T.space6) {
-                TextField(self.tr("ui.placeholder.filter_rule"), text: self.$viewModel.filterText)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.app(size: T.FontSize.body, weight: .regular))
-                    .foregroundStyle(nativePrimaryLabel)
-
+                self.filterTextField(self.tr("ui.placeholder.filter_rule"), text: self.$viewModel.filterText)
                 self.rulesPolicyMenu
             }
         }
-        .menuRowPadding(vertical: T.space4)
     }
 
     func ruleTypeChip(_ filter: RulesTypeFilter) -> some View {
@@ -165,7 +160,7 @@ struct RulesTabView: TranslatingView {
     }
 
     func flatRulesList(visibleRules: [RuleItem], providerLookup: [String: ProviderDetail]) -> some View {
-        MeasurementAwareVStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(Array(visibleRules.enumerated()), id: \.offset) { index, rule in
                 self.rulesRow(rule: rule, rowKey: "\(index)", providerLookup: providerLookup)
 

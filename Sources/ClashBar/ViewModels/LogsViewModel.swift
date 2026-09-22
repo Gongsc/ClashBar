@@ -3,16 +3,12 @@ import SwiftUI
 
 @MainActor
 final class LogsViewModel: ObservableObject {
-    private let presentLogsUseCase: PresentLogsUseCase
-
     @Published var selectedSources: Set<AppLogSource> = []
     @Published var selectedLevels: Set<LogLevelFilter> = []
     @Published var searchText: String = ""
     @Published private(set) var visibleLogs: [AppErrorLogEntry] = []
 
-    init(presentLogsUseCase: PresentLogsUseCase = PresentLogsUseCase()) {
-        self.presentLogsUseCase = presentLogsUseCase
-    }
+    init() {}
 
     func toggleSource(_ source: AppLogSource) {
         self.toggleSelection(source, selection: &self.selectedSources)
@@ -28,14 +24,25 @@ final class LogsViewModel: ObservableObject {
         normalizedLevel: @escaping (String) -> String,
         levelFilter: @escaping (String) -> LogLevelFilter)
     {
-        let nextLogs = self.presentLogsUseCase.execute(.init(
-            logs: logs,
-            selectedSources: self.selectedSources,
-            selectedLevels: self.selectedLevels,
-            searchText: self.searchText,
-            searchTextContent: searchTextContent,
-            normalizedLevel: normalizedLevel,
-            levelFilter: levelFilter))
+        let source = logs.prefix(120)
+        let trimmedKeyword = self.searchText.trimmed
+        let isShowingAllSources = self.selectedSources.isEmpty
+        let isShowingAllLevels = self.selectedLevels.isEmpty
+
+        let nextLogs: [AppErrorLogEntry] = if trimmedKeyword.isEmpty, isShowingAllSources, isShowingAllLevels {
+            Array(source)
+        } else {
+            source.filter { log in
+                guard isShowingAllSources || self.selectedSources.contains(log.source) else { return false }
+                guard trimmedKeyword.isEmpty || searchTextContent(log).localizedStandardContains(trimmedKeyword)
+                else {
+                    return false
+                }
+                return isShowingAllLevels || self.selectedLevels
+                    .contains(levelFilter(normalizedLevel(log.level)))
+            }
+        }
+
         guard nextLogs != self.visibleLogs else { return }
         self.visibleLogs = nextLogs
     }
