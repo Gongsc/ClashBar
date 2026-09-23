@@ -424,4 +424,4 @@
 "ui.traffic_window.5min" = "5 minutes";
 "ui.traffic_window.15min" = "15 minutes";
 "ui.traffic_window.30min" = "30 minutes";
-"ui.settings.record_traffic_hidden" = "Keep Recording While Hidden";
+"ui.settings.record_traffic_hidden" = "Keep Traffic Chart";

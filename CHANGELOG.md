@@ -10,7 +10,7 @@
 
 - ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **独立版本线**：自 v1.0.0 起独立编号，发布流程忽略从上游同步来的 `v0.x` 标签。
 - ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **流量曲线展示时长**：可选 1 / 5 / 15 / 30 分钟，默认 5 分钟，横轴按真实时间排布。
-- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **面板关闭时继续记录曲线**：新增开关，默认关闭；开启后「仅图标」模式下曲线也不再断档，代价是应用不再完全空闲。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **保持流量曲线**：新增开关，位于「流量曲线时长」下方，默认关闭；开启后「仅图标」模式下曲线也不再断档，代价是应用不再完全空闲。
 
 **🚀 优化改进 (Improvements)**
 

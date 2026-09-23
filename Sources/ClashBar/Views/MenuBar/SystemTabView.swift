@@ -336,13 +336,6 @@ struct SystemTabView: TranslatingView {
                 Binding(
                     get: { self.appViewModel.autoStartCoreEnabled },
                     set: { self.appViewModel.autoStartCoreEnabled = $0 })),
-            (
-                "record-traffic-while-hidden",
-                tr("ui.settings.record_traffic_hidden"),
-                "waveform.path.ecg",
-                Binding(
-                    get: { self.appViewModel.recordsTrafficWhileHidden },
-                    set: { self.appViewModel.recordsTrafficWhileHidden = $0 })),
         ]
         let coreToggleItems: [(id: String, title: String, symbol: String, isOn: Binding<Bool>)] = [
             (
@@ -403,6 +396,12 @@ struct SystemTabView: TranslatingView {
                     optionTitle: { self.tr($0.titleKey) },
                     isSelected: { self.appViewModel.trafficHistoryWindow == $0 },
                     onSelect: { self.appViewModel.trafficHistoryWindow = $0 }))
+                self.settingsToggleRow(
+                    self.tr("ui.settings.record_traffic_hidden"),
+                    symbol: "waveform.path.ecg",
+                    isOn: Binding(
+                        get: { self.appViewModel.recordsTrafficWhileHidden },
+                        set: { self.appViewModel.recordsTrafficWhileHidden = $0 }))
                 self.settingsSelectionRow(.init(
                     title: self.tr("ui.settings.language"),
                     symbol: "character.book.closed",
