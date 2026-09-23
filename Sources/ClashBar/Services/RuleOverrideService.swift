@@ -124,14 +124,20 @@ struct RuleOverrideService {
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    /// 缺失的文件写入带注释的模板，已有文件不动。
-    func ensureTemplate(for file: RuleOverrideFile, fileManager: FileManager = .default) throws -> URL {
+    /// 编辑器里显示的文本：文件不存在时给出带注释的模板（不落盘，保存时才写）。
+    func editableText(for file: RuleOverrideFile, fileManager: FileManager = .default) throws -> String {
+        let url = self.url(for: file)
+        guard fileManager.fileExists(atPath: url.path) else { return file.template }
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+            throw RuleOverrideError.unreadable(fileName: file.fileName)
+        }
+        return text
+    }
+
+    func write(_ text: String, to file: RuleOverrideFile, fileManager: FileManager = .default) throws {
         try self.ensureOverridesDirectory(fileManager: fileManager)
         let target = try self.workingDirectoryManager.normalizeAndValidateWithinRoot(self.url(for: file))
-        if !fileManager.fileExists(atPath: target.path) {
-            try Data(file.template.utf8).write(to: target, options: .atomic)
-        }
-        return target
+        try Data(text.utf8).write(to: target, options: .atomic)
     }
 
     func loadContent(fileManager: FileManager = .default) throws -> RuleOverrideContent {

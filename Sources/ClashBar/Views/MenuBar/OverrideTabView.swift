@@ -13,6 +13,9 @@ struct OverrideTabView: TranslatingView {
 }
 
 private struct RuleOverrideCard: TranslatingView {
+    /// 编辑区固定高度，规则多时在编辑器内部上下滚动，不把面板撑高。
+    private static let editorHeight: CGFloat = 180
+
     let appViewModel: AppViewModel
     @ObservedObject var store: RuleOverrideStore
 
@@ -33,9 +36,9 @@ private struct RuleOverrideCard: TranslatingView {
                 if self.isRemote {
                     self.hintRow(self.tr("ui.rule_override.remote_hint"), symbol: "info.circle")
                 } else if self.store.isEnabled {
-                    self.fileRow(.prepend, symbol: "arrow.up.to.line", count: self.store.counts.prepend)
-                    self.fileRow(.append, symbol: "arrow.down.to.line", count: self.store.counts.append)
-                    self.fileRow(
+                    self.fileSection(.prepend, symbol: "arrow.up.to.line", count: self.store.counts.prepend)
+                    self.fileSection(.append, symbol: "arrow.down.to.line", count: self.store.counts.append)
+                    self.fileSection(
                         .ruleProviders,
                         symbol: "square.stack.3d.up",
                         count: self.store.counts.ruleProviders)
@@ -66,23 +69,97 @@ private struct RuleOverrideCard: TranslatingView {
         .menuRowPadding(vertical: T.space4)
     }
 
-    private func fileRow(_ file: RuleOverrideFile, symbol: String, count: Int) -> some View {
-        HStack(spacing: T.space8) {
-            self.rowLabel(symbol: symbol, title: self.tr(self.titleKey(for: file)))
-                .layoutPriority(1)
-            Spacer(minLength: 0)
-            Text(self.countText(for: file, count: count))
-                .font(.app(size: T.FontSize.caption, weight: .medium))
-                .foregroundStyle(count > 0 ? nativeSecondaryLabel : nativeTertiaryLabel)
-                .monospacedDigit()
+    private func fileSection(_ file: RuleOverrideFile, symbol: String, count: Int) -> some View {
+        let isExpanded = self.store.expandedFile == file
+        return VStack(spacing: 0) {
             Button {
-                self.appViewModel.openRuleOverrideFile(file)
+                withAnimation(.spring(response: 0.30, dampingFraction: 0.80)) {
+                    self.appViewModel.toggleRuleOverrideEditor(file)
+                }
             } label: {
-                Label(self.tr("ui.rule_override.edit"), systemImage: "square.and.pencil")
+                HStack(spacing: T.space8) {
+                    self.rowLabel(symbol: symbol, title: self.tr(self.titleKey(for: file)))
+                        .layoutPriority(1)
+                    if self.store.isDirty(file) {
+                        Text(self.tr("ui.rule_override.unsaved"))
+                            .font(.app(size: T.FontSize.caption, weight: .medium))
+                            .foregroundStyle(nativeWarning)
+                    }
+                    Spacer(minLength: 0)
+                    Text(self.countText(for: file, count: count))
+                        .font(.app(size: T.FontSize.caption, weight: .medium))
+                        .foregroundStyle(count > 0 ? nativeSecondaryLabel : nativeTertiaryLabel)
+                        .monospacedDigit()
+                    Image(systemName: "chevron.right")
+                        .font(.app(size: T.FontSize.caption, weight: .semibold))
+                        .foregroundStyle(nativeTertiaryLabel)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .contentShape(Rectangle())
             }
-            .appBorderedButtonStyle()
-            .controlSize(.small)
+            .buttonStyle(.plain)
             .help(file.fileName)
+            .menuRowPadding(vertical: T.space4)
+
+            // 编辑区常驻视图树，靠高度 0 ↔ 自然高度做动画：展开时从这一行下方拉开、折叠时收回，
+            // 而不是整块从顶部滑入滑出（与系统代理例外列表的展开方式一致）。
+            self.editor(for: file, isExpanded: isExpanded)
+                .frame(maxHeight: isExpanded ? .infinity : 0, alignment: .top)
+                .clipped()
+                .opacity(isExpanded ? 1 : 0)
+                .allowsHitTesting(isExpanded)
+                .accessibilityHidden(!isExpanded)
+        }
+    }
+
+    private func editor(for file: RuleOverrideFile, isExpanded: Bool) -> some View {
+        let isDirty = self.store.isDirty(file)
+        return VStack(alignment: .leading, spacing: T.space4) {
+            PlainTextEditor(
+                text: Binding(
+                    get: { self.store.drafts[file] ?? "" },
+                    set: { self.store.drafts[file] = $0 }),
+                fontSize: T.FontSize.subheadline,
+                isActive: isExpanded)
+                .frame(height: Self.editorHeight)
+                .background {
+                    RoundedRectangle(cornerRadius: T.cornerRadius, style: .continuous)
+                        .fill(nativeControlFill)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: T.cornerRadius, style: .continuous)
+                        .stroke(nativeControlBorder, lineWidth: T.stroke)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: T.cornerRadius, style: .continuous))
+
+            HStack(spacing: T.space6) {
+                Spacer(minLength: 0)
+                Button {
+                    self.appViewModel.revertRuleOverrideDraft(file)
+                } label: {
+                    self.actionLabel(
+                        self.tr("ui.rule_override.revert"),
+                        symbol: "arrow.uturn.backward",
+                        tint: isDirty ? nativeWarning : nil)
+                }
+                .appBorderedButtonStyle()
+                .controlSize(.small)
+                .disabled(!isDirty)
+
+                Button {
+                    Task { await self.appViewModel.saveRuleOverrideDraft(file) }
+                } label: {
+                    self.actionLabel(
+                        self.tr("ui.rule_override.save"),
+                        symbol: "checkmark",
+                        tint: isDirty ? nativePositive : nil)
+                }
+                .appBorderedButtonStyle()
+                .controlSize(.small)
+                // 三个编辑区都常驻，只给展开的那个挂 ⌘S，避免快捷键冲突。
+                .keyboardShortcut(isExpanded ? KeyboardShortcut("s", modifiers: .command) : nil)
+                .disabled(!isDirty)
+            }
         }
         .menuRowPadding(vertical: T.space4)
     }
@@ -91,6 +168,7 @@ private struct RuleOverrideCard: TranslatingView {
     private var statusRow: some View {
         if self.store.isApplying {
             self.statusLine(symbol: nil, color: nativeSecondaryLabel, text: self.tr("ui.rule_override.status.applying"))
+                .menuRowPadding(vertical: T.space4)
         } else {
             switch self.store.status {
             case let .applied(configName, at):
@@ -208,6 +286,16 @@ private struct RuleOverrideCard: TranslatingView {
                 .foregroundStyle(nativePrimaryLabel)
                 .lineLimit(1)
                 .truncationMode(.tail)
+        }
+    }
+
+    /// 可用时图标上色，不可用时沿用按钮默认的灰色。
+    private func actionLabel(_ title: String, symbol: String, tint: Color?) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: symbol)
+                .foregroundStyle(tint ?? nativeTertiaryLabel)
         }
     }
 

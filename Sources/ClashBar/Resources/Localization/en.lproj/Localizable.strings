@@ -433,7 +433,9 @@
 "ui.rule_override.rule_providers" = "Rule Providers";
 "ui.rule_override.count.rules" = "%d rules";
 "ui.rule_override.count.providers" = "%d sets";
-"ui.rule_override.edit" = "Edit";
+"ui.rule_override.save" = "Save";
+"ui.rule_override.revert" = "Revert";
+"ui.rule_override.unsaved" = "Unsaved";
 "ui.rule_override.apply_now" = "Apply Now";
 "ui.rule_override.open_directory" = "Open Folder";
 "ui.rule_override.view_logs" = "View Logs";

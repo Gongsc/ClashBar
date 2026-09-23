@@ -433,7 +433,9 @@
 "ui.rule_override.rule_providers" = "规则集";
 "ui.rule_override.count.rules" = "%d 条";
 "ui.rule_override.count.providers" = "%d 个";
-"ui.rule_override.edit" = "编辑";
+"ui.rule_override.save" = "保存";
+"ui.rule_override.revert" = "还原";
+"ui.rule_override.unsaved" = "未保存";
 "ui.rule_override.apply_now" = "立即应用";
 "ui.rule_override.open_directory" = "打开覆写目录";
 "ui.rule_override.view_logs" = "查看日志";

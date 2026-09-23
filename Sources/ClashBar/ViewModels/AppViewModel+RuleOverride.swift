@@ -115,11 +115,19 @@ extension AppViewModel {
         guard !self.isRemoteTarget, self.processManager.isRunning else { return }
         guard force || self.ruleOverrideStore.isEnabled else { return }
         // 启动 / 重启本身会重新生成运行时配置，这时再 PUT 只会和它抢。
-        guard !self.ruleOverrideStore.isApplying, !self.isCoreActionProcessing else { return }
+        guard !self.isCoreActionProcessing else { return }
+        // 重载进行中又保存了一次：记下来，等这一轮结束再补一次，而不是丢掉这次修改。
+        guard !self.ruleOverrideStore.isApplying else {
+            self.ruleOverrideStore.needsReapply = true
+            return
+        }
 
         self.ruleOverrideStore.isApplying = true
         defer { self.ruleOverrideStore.isApplying = false }
-        await self.reloadConfig()
+        repeat {
+            self.ruleOverrideStore.needsReapply = false
+            await self.reloadConfig()
+        } while self.ruleOverrideStore.needsReapply
     }
 
     func refreshRuleOverrideCounts() {
@@ -132,22 +140,56 @@ extension AppViewModel {
         }
     }
 
-    func openRuleOverrideFile(_ file: RuleOverrideFile) {
-        do {
-            let url = try self.ruleOverrideService.ensureTemplate(for: file)
-            // .list 往往没有关联程序，此时退回文本编辑。
-            if NSWorkspace.shared.urlForApplication(toOpen: url) != nil, NSWorkspace.shared.open(url) {
+    // MARK: - In-panel editor
+
+    func toggleRuleOverrideEditor(_ file: RuleOverrideFile) {
+        let store = self.ruleOverrideStore
+        guard store.expandedFile != file else {
+            store.expandedFile = nil
+            return
+        }
+        if store.drafts[file] == nil {
+            do {
+                let text = try self.ruleOverrideService.editableText(for: file)
+                store.savedTexts[file] = text
+                store.drafts[file] = text
+            } catch {
+                self.markRuleOverrideFailed(error.localizedDescription)
                 return
             }
-            guard let textEdit = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit")
-            else {
-                throw CocoaError(.fileReadNoPermission)
-            }
-            NSWorkspace.shared.open([url], withApplicationAt: textEdit, configuration: NSWorkspace.OpenConfiguration())
+        }
+        store.expandedFile = file
+    }
+
+    func saveRuleOverrideDraft(_ file: RuleOverrideFile) async {
+        let store = self.ruleOverrideStore
+        guard let draft = store.drafts[file], store.isDirty(file) else { return }
+        do {
+            try self.ruleOverrideService.write(draft, to: file)
         } catch {
-            self.appendLog(
-                level: "error",
-                message: self.tr("log.rule_override.open_failed", file.fileName, error.localizedDescription))
+            self.markRuleOverrideFailed(error.localizedDescription)
+            return
+        }
+        store.savedTexts[file] = draft
+        // 文件监控随后也会触发，但那时内容已与 lastContent 相同，不会重复重载。
+        await self.applyRuleOverridesIfRunning()
+    }
+
+    func revertRuleOverrideDraft(_ file: RuleOverrideFile) {
+        let store = self.ruleOverrideStore
+        store.drafts[file] = store.savedTexts[file]
+    }
+
+    /// 文件在面板外被改动时，把没有未保存修改的草稿同步成磁盘上的新内容；有修改的草稿保持不动。
+    private func syncRuleOverrideDraftsFromDisk() {
+        let store = self.ruleOverrideStore
+        for file in RuleOverrideFile.allCases where store.drafts[file] != nil {
+            guard let text = try? self.ruleOverrideService.editableText(for: file) else { continue }
+            let wasDirty = store.isDirty(file)
+            store.savedTexts[file] = text
+            if !wasDirty {
+                store.drafts[file] = text
+            }
         }
     }
 
@@ -202,6 +244,7 @@ extension AppViewModel {
     }
 
     private func handleRuleOverrideFilesChanged() async {
+        self.syncRuleOverrideDraftsFromDisk()
         let content: RuleOverrideContent
         do {
             content = try self.ruleOverrideService.loadContent()
