@@ -9,7 +9,7 @@
 "ui.log_filter.info" = "信息";
 "ui.log_filter.warning" = "警告";
 "ui.log_filter.error" = "错误";
-"ui.log_source.all" = "全部来源";
+"ui.log_source.all" = "全部";
 "ui.log_source.clashbar" = "ClashBarPlus";
 "ui.log_source.mihomo" = "Mihomo";
 
@@ -79,6 +79,7 @@
 "ui.quick.switch_config" = "切换配置";
 "ui.quick.system_proxy" = "系统代理";
 "ui.quick.tun_mode" = "TUN 模式";
+"ui.quick.tun_stack_switch_hint" = "双击切换 TUN 协议栈";
 "ui.quick.copy_terminal" = "复制终端命令";
 "ui.quick.copy_terminal_current_endpoint" = "复制当前端点命令";
 "ui.quick.reload_config_list" = "重载配置文件";
@@ -274,6 +275,7 @@
 "app.tun.error.permission_verify_failed" = "TUN 权限写入后校验失败。";
 "app.tun.error.runtime_state_mismatch" = "重启内核后 TUN 状态未生效。";
 "app.tun.error.patch_failed" = "应用 TUN 运行时配置失败: %@";
+"app.tun.mips_requires_upgrade" = "mips 协议栈需要 mihomo v%@ 或更高版本内核，请先升级内核。";
 "app.config.remote_import.prompt" = "请输入订阅链接与保存文件名";
 "app.config.import.overwrite.title" = "配置已存在：%@";
 "app.config.import.overwrite.message" = "是否覆盖现有配置文件？";
@@ -355,6 +357,7 @@
 "log.system_proxy.startup_repair_failed" = "启动时校验系统代理失败: %@";
 "log.system_proxy.helper_failed" = "系统代理 helper 状态异常: %@";
 "log.tun.toggled" = "TUN 模式%@";
+"log.tun.stack_changed" = "TUN 协议栈已切换为 %@";
 "log.tun.enabled" = "已开启";
 "log.tun.disabled" = "已关闭";
 "log.tun.toggle_failed" = "切换 TUN 模式失败: %@";
@@ -367,8 +370,6 @@
 "log.config.changed_restart" = "配置已变更，正在重启内核";
 "log.providers.fetch_proxy_failed" = "Providers 刷新: 获取代理提供者失败: %@";
 "log.providers.fetch_rule_failed" = "Providers 刷新: 获取规则提供者失败: %@";
-"log.providers.config_reload_success" = "Providers 刷新: 强制重载配置成功";
-"log.providers.config_reload_failed" = "Providers 刷新: 强制重载配置失败: %@";
 "log.providers.proxy_update_failed" = "Providers 刷新: 更新代理提供者失败（%@）: %@";
 "log.providers.rule_update_failed" = "Providers 刷新: 更新规则提供者失败（%@）: %@";
 "log.providers.api_unavailable" = "Providers 刷新跳过: API 不可用（%@）";

@@ -6,8 +6,6 @@ final class StatusItemContentView: NSView {
     private let brandIconRenderSize: CGFloat = 24
     private let symbolPointSize: CGFloat = 20
     private let iconTextSpacing: CGFloat = 0
-    // 需容纳最宽速率文本（如 "12.3M↑"，10pt semibold 等宽数字下实测约 40.65pt），
-    // 否则 M/s 量级数值会被 .byTruncatingHead 截断隐藏。
     private let textContainerWidth: CGFloat = 43
     private let textLineHeight: CGFloat = 11
 
@@ -28,12 +26,40 @@ final class StatusItemContentView: NSView {
     private var currentDisplay: MenuBarDisplay?
     private var cachedUpLine: String = ""
     private var cachedDownLine: String = ""
-    private lazy var runBrandStatusIconImage: NSImage? = Self.makeBrandStatusIconImage(
-        source: BrandIcon.runImage, size: brandIconRenderSize)
-    private lazy var sleepBrandStatusIconImage: NSImage? = Self.makeBrandStatusIconImage(
-        source: BrandIcon.sleepImage, size: brandIconRenderSize)
-    private lazy var tunBrandStatusIconImage: NSImage? = Self.makeBrandStatusIconImage(
-        source: BrandIcon.tunImage, size: brandIconRenderSize)
+    private var cachedRunBrandStatusIconImage: NSImage?
+    private var cachedSleepBrandStatusIconImage: NSImage?
+    private var cachedTunBrandStatusIconImage: NSImage?
+
+    private var runBrandStatusIconImage: NSImage? {
+        if let cached = self.cachedRunBrandStatusIconImage {
+            return cached
+        }
+        guard let img = Self.makeBrandStatusIconImage(source: BrandIcon.runImage, size: self.brandIconRenderSize)
+        else { return nil }
+        self.cachedRunBrandStatusIconImage = img
+        return img
+    }
+
+    private var sleepBrandStatusIconImage: NSImage? {
+        if let cached = self.cachedSleepBrandStatusIconImage {
+            return cached
+        }
+        guard let img = Self.makeBrandStatusIconImage(source: BrandIcon.sleepImage, size: self.brandIconRenderSize)
+        else { return nil }
+        self.cachedSleepBrandStatusIconImage = img
+        return img
+    }
+
+    private var tunBrandStatusIconImage: NSImage? {
+        if let cached = self.cachedTunBrandStatusIconImage {
+            return cached
+        }
+        guard let img = Self.makeBrandStatusIconImage(source: BrandIcon.tunImage, size: self.brandIconRenderSize)
+        else { return nil }
+        self.cachedTunBrandStatusIconImage = img
+        return img
+    }
+
     private static let brandIconRenderScales: [CGFloat] = [1, 2, 3]
 
     var usesBrandIcon: Bool {
@@ -172,7 +198,6 @@ final class StatusItemContentView: NSView {
 
     private func brandStatusIconImage(isRunning: Bool, isTunEnabled: Bool) -> NSImage? {
         guard isRunning else { return self.sleepBrandStatusIconImage }
-        // Fall back to the run icon so toggling TUN never swaps brand art for an SF Symbol.
         return isTunEnabled
             ? (self.tunBrandStatusIconImage ?? self.runBrandStatusIconImage)
             : self.runBrandStatusIconImage

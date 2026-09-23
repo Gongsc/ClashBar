@@ -584,7 +584,7 @@ struct SystemTabView: TranslatingView {
                                         Image(systemName: "arrow.down.circle")
                                     }
                                 }
-                                .frame(width: 16, height: 16) // 固定图标位，切换 spinner 时按钮不变高
+                                .frame(width: 16, height: 16)
                                 Text(self.tr("ui.action.update_geo_database"))
                             }
                             .frame(maxWidth: .infinity, alignment: .center)

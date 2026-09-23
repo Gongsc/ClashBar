@@ -77,15 +77,15 @@ format_bytes() {
     BEGIN {
       split("B KiB MiB GiB TiB", units, " ")
       size = bytes + 0
-      index = 1
-      while (size >= 1024 && index < 5) {
+      idx = 1
+      while (size >= 1024 && idx < 5) {
         size /= 1024
-        index++
+        idx++
       }
-      if (index == 1) {
-        printf "%d %s", size, units[index]
+      if (idx == 1) {
+        printf "%d %s", size, units[idx]
       } else {
-        printf "%.1f %s", size, units[index]
+        printf "%.1f %s", size, units[idx]
       }
     }
   '

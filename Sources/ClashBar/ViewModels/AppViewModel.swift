@@ -63,14 +63,6 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    var connectionsCount: Int {
-        self.connectionsStore.connectionsCount
-    }
-
-    var connections: [ConnectionSummary] {
-        self.connectionsStore.connections
-    }
-
     let connectionsStore = ConnectionsStore()
 
     @Published var currentMode: CoreMode = .rule
@@ -188,6 +180,8 @@ final class AppViewModel: ObservableObject {
 
     @Published var isTunSyncing: Bool = false
 
+    @Published var tunStack: String?
+
     @Published var apiStatus: APIHealth = .unknown {
         didSet { self.refreshMenuBarDisplaySnapshotIfNeeded() }
     }
@@ -256,20 +250,11 @@ final class AppViewModel: ObservableObject {
         if normalized == "failed" {
             return .failed
         }
-        guard self.coreRepository.isRunning || normalized == "running" else { return .stopped }
+        guard self.processManager.isRunning || normalized == "running" else { return .stopped }
         switch self.apiStatus {
         case .healthy: return .runningHealthy
         case .failed: return .failed
         case .degraded, .unknown: return .runningDegraded
-        }
-    }
-
-    var runtimeStatusText: String {
-        switch self.runtimeVisualStatus {
-        case .starting: tr("app.runtime.starting")
-        case .runningHealthy, .runningDegraded: tr("app.runtime.running")
-        case .failed: tr("app.runtime.failed")
-        case .stopped: tr("app.runtime.stopped")
         }
     }
 
@@ -281,7 +266,7 @@ final class AppViewModel: ObservableObject {
     }
 
     var isRuntimeRunning: Bool {
-        self.coreRepository.isRunning || self.statusText.caseInsensitiveCompare("running") == .orderedSame
+        self.processManager.isRunning || self.statusText.caseInsensitiveCompare("running") == .orderedSame
     }
 
     var menuBarSymbolName: String {
@@ -350,7 +335,7 @@ final class AppViewModel: ObservableObject {
     }
 
     var isModeSwitchEnabled: Bool {
-        (self.isRemoteTarget || self.coreRepository.isRunning) && self.apiStatus == .healthy
+        (self.isRemoteTarget || self.processManager.isRunning) && self.apiStatus == .healthy
     }
 
     var isTunToggleEnabled: Bool {
@@ -385,11 +370,10 @@ final class AppViewModel: ObservableObject {
     }
 
     let processManager: any MihomoControlling
-    let coreRepository: any CoreRepository
-    let configRepository: any ConfigRepository
-    let systemProxyRepository: any SystemProxyRepository
-    let tunPermissionRepository: any TunPermissionRepository
-    let launchAtLoginRepository: any LaunchAtLoginRepository
+    let configService: ConfigService
+    let systemProxyService: SystemProxyService
+    let tunPermissionService: TunPermissionService
+    let launchAtLoginService: AppLaunchService
     let workingDirectoryManager: WorkingDirectoryManager
     let networkReachabilityMonitor: NetworkReachabilityMonitor
     let ssidMonitorService: SSIDMonitorService
@@ -501,11 +485,10 @@ final class AppViewModel: ObservableObject {
 
     init(dependencies: AppDependencies) {
         self.processManager = dependencies.processManager
-        self.coreRepository = dependencies.coreRepository
-        self.configRepository = dependencies.configRepository
-        self.systemProxyRepository = dependencies.systemProxyRepository
-        self.tunPermissionRepository = dependencies.tunPermissionRepository
-        self.launchAtLoginRepository = dependencies.launchAtLoginRepository
+        self.configService = dependencies.configService
+        self.systemProxyService = dependencies.systemProxyService
+        self.tunPermissionService = dependencies.tunPermissionService
+        self.launchAtLoginService = dependencies.launchAtLoginService
         self.workingDirectoryManager = dependencies.workingDirectoryManager
         self.networkReachabilityMonitor = dependencies.networkReachabilityMonitor
         self.ssidMonitorService = dependencies.ssidMonitorService

@@ -3,9 +3,16 @@ import Foundation
 @MainActor
 extension AppViewModel {
     func effectiveMixedPort() -> Int {
-        ResolveEffectiveMixedPortUseCase().execute(
-            runtimeMixedPort: mixedPort,
-            settingsMixedPort: settingsMixedPort)
+        if self.mixedPort > 0 {
+            return self.mixedPort
+        }
+
+        let trimmed = self.settingsMixedPort.trimmed
+        if let value = Int(trimmed), (1...65535).contains(value) {
+            return value
+        }
+
+        return 7890
     }
 
     func applyEditableSettingsSnapshotToUI(_ snapshot: EditableSettingsSnapshot) {
@@ -243,17 +250,24 @@ extension AppViewModel {
         errorMessageKey: String,
         skipEmptyValues: Bool) -> [String: ConfigPatchValue]?
     {
-        do {
-            return try self.buildPortPatchBodyUseCase.execute(fields: fields, skipEmptyValues: skipEmptyValues)
-        } catch let BuildPortPatchBodyError.invalidPort(key) {
-            settingsErrorMessage = tr(errorMessageKey, key)
-            settingsSavedMessage = nil
-            return nil
-        } catch {
-            settingsErrorMessage = tr(errorMessageKey, "unknown")
-            settingsSavedMessage = nil
-            return nil
+        var body: [String: ConfigPatchValue] = [:]
+
+        for field in fields {
+            let trimmedValue = field.value.trimmed
+            if skipEmptyValues, trimmedValue.isEmpty {
+                continue
+            }
+
+            guard let intValue = Int(trimmedValue), (0...65535).contains(intValue) else {
+                settingsErrorMessage = tr(errorMessageKey, field.key)
+                settingsSavedMessage = nil
+                return nil
+            }
+
+            body[field.key] = .int(intValue)
         }
+
+        return body
     }
 
     func syncEditableFields<Value: Equatable>(

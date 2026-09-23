@@ -33,11 +33,26 @@ private final class TimestampCacheBox: @unchecked Sendable {
 }
 
 enum ValueFormatter {
-    private static let timestampFormatterKey = "clashbar.formatter.timestamp"
     private static let timestampCache = TimestampCacheBox()
 
-    private static let iso8601WithFractionalKey = "clashbar.formatter.iso8601.fractional"
-    private static let iso8601BasicKey = "clashbar.formatter.iso8601.basic"
+    private static let timestampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return f
+    }()
+
+    private nonisolated(unsafe) static let iso8601FractionalFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private nonisolated(unsafe) static let iso8601BasicFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
 
     static func speed(_ value: Int64) -> String {
         let normalized = max(0, value)
@@ -113,7 +128,7 @@ enum ValueFormatter {
             return cached
         }
 
-        let formatted = self.threadLocalTimestampFormatter().string(from: date)
+        let formatted = self.timestampFormatter.string(from: date)
         self.timestampCache.store(formatted, for: second)
         return formatted
     }
@@ -184,37 +199,11 @@ enum ValueFormatter {
         return "\(rounded) \(unit)"
     }
 
-    private static func parseISO8601Date(_ input: String) -> Date? {
-        if let date = threadLocalISO8601Formatter(withFractionalSeconds: true).date(from: input) {
+    static func parseISO8601Date(_ input: String) -> Date? {
+        if let date = self.iso8601FractionalFormatter.date(from: input) {
             return date
         }
-        return self.threadLocalISO8601Formatter(withFractionalSeconds: false).date(from: input)
-    }
-
-    private static func threadLocalTimestampFormatter() -> DateFormatter {
-        if let formatter = Thread.current.threadDictionary[self.timestampFormatterKey] as? DateFormatter {
-            return formatter
-        }
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        Thread.current.threadDictionary[self.timestampFormatterKey] = formatter
-        return formatter
-    }
-
-    private static func threadLocalISO8601Formatter(withFractionalSeconds: Bool) -> ISO8601DateFormatter {
-        let key = withFractionalSeconds ? self.iso8601WithFractionalKey : self.iso8601BasicKey
-        if let formatter = Thread.current.threadDictionary[key] as? ISO8601DateFormatter {
-            return formatter
-        }
-
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = withFractionalSeconds
-            ? [.withInternetDateTime, .withFractionalSeconds]
-            : [.withInternetDateTime]
-        Thread.current.threadDictionary[key] = formatter
-        return formatter
+        return self.iso8601BasicFormatter.date(from: input)
     }
 
     static func remoteConfigMenuStatusLine(
@@ -239,46 +228,33 @@ enum ValueFormatter {
 
         if let last = lastUpdateAt {
             let calendar = Calendar.current
-            let timeFormatter = self.threadLocalShortTimeFormatter()
             if calendar.isDate(last, inSameDayAs: now) {
                 parts.append(L10n.t(
                     "fmt.remote_config.last_update",
                     language: language,
-                    timeFormatter.string(from: last)))
+                    self.shortTimeFormatter.string(from: last)))
             } else {
-                let dateTimeFormatter = self.threadLocalShortDateTimeFormatter()
                 parts.append(L10n.t(
                     "fmt.remote_config.last_update",
                     language: language,
-                    dateTimeFormatter.string(from: last)))
+                    self.shortDateTimeFormatter.string(from: last)))
             }
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    private static let shortTimeFormatterKey = "clashbar.formatter.shortTime"
-    private static let shortDateTimeFormatterKey = "clashbar.formatter.shortDateTime"
-
-    private static func threadLocalShortTimeFormatter() -> DateFormatter {
-        if let f = Thread.current.threadDictionary[shortTimeFormatterKey] as? DateFormatter {
-            return f
-        }
+    private static let shortTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "HH:mm"
-        Thread.current.threadDictionary[self.shortTimeFormatterKey] = f
         return f
-    }
+    }()
 
-    private static func threadLocalShortDateTimeFormatter() -> DateFormatter {
-        if let f = Thread.current.threadDictionary[shortDateTimeFormatterKey] as? DateFormatter {
-            return f
-        }
+    private static let shortDateTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "MM-dd HH:mm"
-        Thread.current.threadDictionary[self.shortDateTimeFormatterKey] = f
         return f
-    }
+    }()
 }

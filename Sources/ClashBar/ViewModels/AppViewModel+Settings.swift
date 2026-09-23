@@ -2,14 +2,6 @@ import Foundation
 
 @MainActor
 extension AppViewModel {
-    var buildPortPatchBodyUseCase: BuildPortPatchBodyUseCase {
-        BuildPortPatchBodyUseCase()
-    }
-
-    var resolveOverlayPortFieldsUseCase: ResolveOverlayPortFieldsUseCase {
-        ResolveOverlayPortFieldsUseCase()
-    }
-
     enum EditableCoreSetting: String, CaseIterable, Identifiable {
         case allowLan = "allow-lan"
         case ipv6
@@ -86,10 +78,6 @@ extension AppViewModel {
         }
 
         await self.patchSingleConfig(setting.configKey, value: .string(normalized))
-    }
-
-    func applySettingTunMode(_ value: Bool) async {
-        await toggleTunMode(value)
     }
 
     func applyProxyPorts(autoSaved: Bool = false) async {
@@ -249,9 +237,21 @@ extension AppViewModel {
             return false
         }
 
-        let resolvedPortFields = self.resolveOverlayPortFieldsUseCase.execute(
-            overlay: overlay,
-            fallback: fallback)
+        let resolvedPortFields = [
+            SettingsPortField(key: "port", value: overlay.port.trimmedNonEmpty ?? fallback?.port.trimmed ?? ""),
+            SettingsPortField(
+                key: "socks-port",
+                value: overlay.socksPort.trimmedNonEmpty ?? fallback?.socksPort.trimmed ?? ""),
+            SettingsPortField(
+                key: "mixed-port",
+                value: overlay.mixedPort.trimmedNonEmpty ?? fallback?.mixedPort.trimmed ?? ""),
+            SettingsPortField(
+                key: "redir-port",
+                value: overlay.redirPort.trimmedNonEmpty ?? fallback?.redirPort.trimmed ?? ""),
+            SettingsPortField(
+                key: "tproxy-port",
+                value: overlay.tproxyPort.trimmedNonEmpty ?? fallback?.tproxyPort.trimmed ?? ""),
+        ]
         guard let portBody = validatedPortPatchBody(
             fields: resolvedPortFields,
             errorMessageKey: "app.settings.error.overlay_port_range",
@@ -267,9 +267,6 @@ extension AppViewModel {
         ]
         let tunBody = await self.tunOverlayPatchBody(enabled: overlay.tunEnabled)
         body["tun"] = .object(tunBody)
-        if overlay.tunEnabled {
-            body["dns"] = .object(["enable": .bool(true)])
-        }
         for (key, value) in portBody {
             body[key] = value
         }

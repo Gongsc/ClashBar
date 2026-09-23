@@ -28,50 +28,48 @@ extension AppViewModel {
     }
 
     private func bundledDefaultConfigURL(fileManager: FileManager = .default) -> URL? {
-        FindBundledConfigTemplateUseCase().execute(
-            resourceRoots: AppResourceBundleLocator.candidateResourceRoots(),
-            fileManager: fileManager)
+        AppResourceBundleLocator.bundledConfigTemplateURL(fileManager: fileManager)
     }
 
     func selectConfig() async {
-        let previousSelectedURL = configRepository.selectedConfig
-        let previousSelectedPath = configRepository.selectedConfig?.path
-        guard configRepository.chooseConfigDirectory() != nil else { return }
+        let previousSelectedURL = configService.selectedConfig
+        let previousSelectedPath = configService.selectedConfig?.path
+        guard configService.chooseConfigDirectory() != nil else { return }
 
-        let nextSelectedURL = configRepository.selectedConfig
+        let nextSelectedURL = configService.selectedConfig
         let previousCanonicalPath = previousSelectedURL?.standardizedFileURL.resolvingSymlinksInPath().path
         let nextCanonicalPath = nextSelectedURL?.standardizedFileURL.resolvingSymlinksInPath().path
 
-        if coreRepository.isRunning,
+        if processManager.isRunning,
            let nextSelectedURL,
            previousCanonicalPath != nextCanonicalPath
         {
             let validationFailure = await self.configValidationFailureDetails(configPath: nextSelectedURL.path)
-            let currentCanonicalPath = self.configRepository.selectedConfig?.standardizedFileURL
+            let currentCanonicalPath = self.configService.selectedConfig?.standardizedFileURL
                 .resolvingSymlinksInPath().path
             guard currentCanonicalPath == nextCanonicalPath else { return }
             if let validationFailure {
                 self.handleConfigValidationFailure(configPath: nextSelectedURL.path, details: validationFailure)
                 if let previousSelectedURL {
-                    configRepository.selectConfig(previousSelectedURL)
+                    configService.selectConfig(previousSelectedURL)
                 }
-                _ = self.syncSelectedConfigSelection(configRepository.selectedConfig)
+                _ = self.syncSelectedConfigSelection(configService.selectedConfig)
                 syncConfigDisplayState()
                 return
             }
         }
 
-        let nextSelectedPath = self.syncSelectedConfigSelection(configRepository.selectedConfig)
+        let nextSelectedPath = self.syncSelectedConfigSelection(configService.selectedConfig)
         syncConfigDisplayState()
 
-        appendLog(level: "info", message: tr("log.config.loaded_count", configRepository.availableConfigs.count))
+        appendLog(level: "info", message: tr("log.config.loaded_count", configService.availableConfigs.count))
         await restartCoreIfNeededForConfigSwitch(previousPath: previousSelectedPath, nextPath: nextSelectedPath)
     }
 
     func selectConfigFile(named fileName: String) async {
-        let previousSelectedURL = configRepository.selectedConfig
-        let previousSelectedPath = configRepository.selectedConfig?.path
-        guard let matched = configRepository.availableConfigs.first(where: { $0.lastPathComponent == fileName }) else {
+        let previousSelectedURL = configService.selectedConfig
+        let previousSelectedPath = configService.selectedConfig?.path
+        guard let matched = configService.availableConfigs.first(where: { $0.lastPathComponent == fileName }) else {
             appendLog(level: "error", message: tr("log.config.not_found", fileName))
             return
         }
@@ -79,25 +77,25 @@ extension AppViewModel {
         let previousCanonicalPath = previousSelectedURL?.standardizedFileURL.resolvingSymlinksInPath().path
         let targetCanonicalPath = matched.standardizedFileURL.resolvingSymlinksInPath().path
 
-        if coreRepository.isRunning,
+        if processManager.isRunning,
            previousCanonicalPath != targetCanonicalPath
         {
             let validationFailure = await self.configValidationFailureDetails(configPath: matched.path)
-            let currentCanonicalPath = self.configRepository.selectedConfig?.standardizedFileURL
+            let currentCanonicalPath = self.configService.selectedConfig?.standardizedFileURL
                 .resolvingSymlinksInPath().path
             guard currentCanonicalPath == previousCanonicalPath else { return }
             if let validationFailure {
                 self.handleConfigValidationFailure(configPath: matched.path, details: validationFailure)
                 if let previousSelectedURL {
-                    configRepository.selectConfig(previousSelectedURL)
+                    configService.selectConfig(previousSelectedURL)
                 }
-                _ = self.syncSelectedConfigSelection(configRepository.selectedConfig)
+                _ = self.syncSelectedConfigSelection(configService.selectedConfig)
                 syncConfigDisplayState()
                 return
             }
         }
 
-        configRepository.selectConfig(matched)
+        configService.selectConfig(matched)
         let nextSelectedPath = self.syncSelectedConfigSelection(matched)
         syncConfigDisplayState()
         appendLog(level: "info", message: tr("log.config.selected", fileName))

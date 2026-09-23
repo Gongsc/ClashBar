@@ -108,7 +108,7 @@ extension AppViewModel {
             return
         }
 
-        let resolution = ResolveSSIDStrategyConfigUseCase().execute(
+        let resolution = self.resolveSSIDStrategyConfig(
             currentSSID: self.ssidStrategyCurrentSSID,
             currentConfigName: self.selectedConfigName,
             rules: self.ssidStrategyRules,
@@ -140,6 +140,39 @@ extension AppViewModel {
                     secondaryDetail: currentSSID.trimmedNonEmpty)
             }
         }
+    }
+
+    private enum SSIDStrategyResolution: Equatable {
+        case noAction
+        case switchToConfig(String)
+        case missingConfig(String)
+    }
+
+    private func resolveSSIDStrategyConfig(
+        currentSSID: String?,
+        currentConfigName: String?,
+        rules: [SSIDStrategyRule],
+        availableConfigNames: [String]) -> SSIDStrategyResolution
+    {
+        guard let normalizedSSID = currentSSID?.trimmedNonEmpty else {
+            return .noAction
+        }
+
+        let normalizedRules = SSIDStrategyRule.normalized(rules)
+        guard let matchedRule = normalizedRules.first(where: { $0.ssid == normalizedSSID }) else {
+            return .noAction
+        }
+
+        let targetConfigName = matchedRule.configFileName
+        guard Set(availableConfigNames.map(\.trimmed)).contains(targetConfigName) else {
+            return .missingConfig(targetConfigName)
+        }
+
+        if targetConfigName == currentConfigName?.trimmed {
+            return .noAction
+        }
+
+        return .switchToConfig(targetConfigName)
     }
 
     func ssidStrategyAuthorizationStatusText() -> String {

@@ -544,7 +544,6 @@ final class StatusItemController: NSObject {
     }
 
     private func renderKey(for display: MenuBarDisplay) -> MenuBarDisplay {
-        // Brand art ignores symbolName, so don't let it churn the render key.
         guard self.statusContentView.usesBrandIcon else { return display }
         return MenuBarDisplay(
             mode: display.mode,

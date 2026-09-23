@@ -3,14 +3,14 @@ import Foundation
 @MainActor
 extension AppViewModel {
     func resolveSelectedConfigPath() async -> String? {
-        if let path = self.applySelectedConfig(configRepository.selectedConfig) {
+        if let path = self.applySelectedConfig(configService.selectedConfig) {
             return path
         }
 
         if let selectedName = defaults.string(forKey: selectedConfigKey),
-           let selected = configRepository.availableConfigs.first(where: { $0.lastPathComponent == selectedName })
+           let selected = configService.availableConfigs.first(where: { $0.lastPathComponent == selectedName })
         {
-            configRepository.selectConfig(selected)
+            configService.selectConfig(selected)
             return self.applySelectedConfig(selected)
         }
 
@@ -18,14 +18,14 @@ extension AppViewModel {
             let legacyName = URL(fileURLWithPath: legacySelectedPath).lastPathComponent
             defaults.set(legacyName, forKey: selectedConfigKey)
             defaults.removeObject(forKey: legacySelectedConfigKey)
-            if let selected = configRepository.availableConfigs.first(where: { $0.lastPathComponent == legacyName }) {
-                configRepository.selectConfig(selected)
+            if let selected = configService.availableConfigs.first(where: { $0.lastPathComponent == legacyName }) {
+                configService.selectConfig(selected)
                 return self.applySelectedConfig(selected)
             }
         }
 
-        _ = configRepository.reloadConfigs()
-        return self.applySelectedConfig(configRepository.selectedConfig)
+        _ = configService.reloadConfigs()
+        return self.applySelectedConfig(configService.selectedConfig)
     }
 
     private func applySelectedConfig(_ selected: URL?) -> String? {
@@ -36,8 +36,8 @@ extension AppViewModel {
     }
 
     func restoreSavedConfigDirectory() {
-        configRepository.setConfigDirectory(workingDirectoryManager.configDirectoryURL)
-        if let selected = configRepository.selectedConfig {
+        configService.setConfigDirectory(workingDirectoryManager.configDirectoryURL)
+        if let selected = configService.selectedConfig {
             _ = self.syncSelectedConfigSelection(selected)
         }
         self.syncConfigDisplayState()
@@ -47,20 +47,20 @@ extension AppViewModel {
         guard let lastPath = defaults.string(forKey: lastSuccessfulConfigPathKey), !lastPath.isEmpty else { return }
         let candidate = URL(fileURLWithPath: lastPath)
         guard FileManager.default.fileExists(atPath: candidate.path) else { return }
-        guard let matched = configRepository.availableConfigs.first(where: {
+        guard let matched = configService.availableConfigs.first(where: {
             $0.standardizedFileURL.resolvingSymlinksInPath().path == candidate.standardizedFileURL
                 .resolvingSymlinksInPath().path
         }) else {
             return
         }
-        configRepository.selectConfig(matched)
+        configService.selectConfig(matched)
         _ = self.syncSelectedConfigSelection(matched)
         self.syncConfigDisplayState()
     }
 
     func syncConfigDisplayState() {
-        configDirectoryPath = configRepository.configDirectory?.path ?? "-"
-        availableConfigFileNames = configRepository.availableConfigs.map(\.lastPathComponent)
+        configDirectoryPath = configService.configDirectory?.path ?? "-"
+        availableConfigFileNames = configService.availableConfigs.map(\.lastPathComponent)
         if selectedConfigName == "-", let first = availableConfigFileNames.first {
             selectedConfigName = first
         }
@@ -195,7 +195,7 @@ extension AppViewModel {
     }
 
     func pruneSSIDStrategyRulesIfNeeded() {
-        guard self.configRepository.configDirectory != nil else { return }
+        guard self.configService.configDirectory != nil else { return }
 
         let validConfigNames = Set(self.availableConfigFileNames.map(\.trimmed))
         let nextRules = SSIDStrategyRule.normalized(self.ssidStrategyRules).filter {
@@ -210,17 +210,17 @@ extension AppViewModel {
 
 extension AppViewModel {
     func refreshLaunchAtLoginStatus() {
-        launchAtLoginEnabled = self.launchAtLoginRepository.isEnabled
+        launchAtLoginEnabled = self.launchAtLoginService.isEnabled
     }
 
     func applyLaunchAtLogin(_ enabled: Bool) {
         launchAtLoginErrorMessage = nil
 
         do {
-            try self.launchAtLoginRepository.setEnabled(enabled)
-            launchAtLoginEnabled = self.launchAtLoginRepository.isEnabled
+            try self.launchAtLoginService.setEnabled(enabled)
+            launchAtLoginEnabled = self.launchAtLoginService.isEnabled
         } catch {
-            launchAtLoginEnabled = self.launchAtLoginRepository.isEnabled
+            launchAtLoginEnabled = self.launchAtLoginService.isEnabled
             launchAtLoginErrorMessage = self.launchAtLoginMessage(for: error)
             appendLog(level: "error", message: tr("log.launch_at_login.toggle_failed", error.localizedDescription))
         }

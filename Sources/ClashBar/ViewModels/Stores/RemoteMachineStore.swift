@@ -12,19 +12,6 @@ enum MachineConnectionStatus: Equatable {
         }
         return false
     }
-
-    var shortLabel: String {
-        switch self {
-        case .unknown:
-            "?"
-        case .checking:
-            "…"
-        case let .connected(version):
-            "✓ \(version)"
-        case let .failed(reason):
-            "✗ \(reason)"
-        }
-    }
 }
 
 @MainActor

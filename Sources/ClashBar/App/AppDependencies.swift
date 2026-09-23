@@ -3,11 +3,10 @@ import Foundation
 @MainActor
 struct AppDependencies {
     let processManager: any MihomoControlling
-    let coreRepository: any CoreRepository
-    let configRepository: any ConfigRepository
-    let systemProxyRepository: any SystemProxyRepository
-    let tunPermissionRepository: any TunPermissionRepository
-    let launchAtLoginRepository: any LaunchAtLoginRepository
+    let configService: ConfigService
+    let systemProxyService: SystemProxyService
+    let tunPermissionService: TunPermissionService
+    let launchAtLoginService: AppLaunchService
     let workingDirectoryManager: WorkingDirectoryManager
     let networkReachabilityMonitor: NetworkReachabilityMonitor
     let ssidMonitorService: SSIDMonitorService
@@ -20,7 +19,7 @@ struct AppDependencies {
         let workingDirectoryManager = WorkingDirectoryManager()
         let processManager = MihomoProcessManager(workingDirectoryManager: workingDirectoryManager)
         let configManager = ConfigDirectoryManager(workingDirectoryManager: workingDirectoryManager)
-        let configRepository = DefaultConfigRepository(
+        let configService = ConfigService(
             configManager: configManager,
             configImportService: ConfigImportService())
         let sharedSession = URLSessionFactory.makeEphemeralSession(options: .init(
@@ -38,11 +37,10 @@ struct AppDependencies {
 
         return AppDependencies(
             processManager: processManager,
-            coreRepository: DefaultCoreRepository(processManager: processManager),
-            configRepository: configRepository,
-            systemProxyRepository: DefaultSystemProxyRepository(service: SystemProxyService()),
-            tunPermissionRepository: DefaultTunPermissionRepository(service: TunPermissionService()),
-            launchAtLoginRepository: DefaultLaunchAtLoginRepository(service: AppLaunchService()),
+            configService: configService,
+            systemProxyService: SystemProxyService(),
+            tunPermissionService: TunPermissionService(),
+            launchAtLoginService: AppLaunchService(),
             workingDirectoryManager: workingDirectoryManager,
             networkReachabilityMonitor: NetworkReachabilityMonitor(),
             ssidMonitorService: SSIDMonitorService(),

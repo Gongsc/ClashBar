@@ -40,7 +40,7 @@ struct ConnectionsTabView: TranslatingView {
             if connections.isEmpty {
                 emptyCard(self.tr("ui.empty.connections"))
             } else {
-                MeasurementAwareVStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     SeparatedForEach(data: connections, id: \.id, separator: nativeSeparator) { conn in
                         self.connectionRow(conn)
                     }
@@ -89,7 +89,7 @@ struct ConnectionsTabView: TranslatingView {
     }
 
     var connectionsControlCard: some View {
-        VStack(alignment: .leading, spacing: T.space4) {
+        self.tabControlCard {
             HStack(spacing: T.space6) {
                 self.connectionsFilterMenu
                 self.connectionsSortMenu
@@ -111,12 +111,8 @@ struct ConnectionsTabView: TranslatingView {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            TextField(self.tr("ui.placeholder.filter_connection"), text: self.$viewModel.filterText)
-                .textFieldStyle(.roundedBorder)
-                .font(.app(size: T.FontSize.body, weight: .regular))
-                .foregroundStyle(nativePrimaryLabel)
+            self.filterTextField(self.tr("ui.placeholder.filter_connection"), text: self.$viewModel.filterText)
         }
-        .menuRowPadding(vertical: T.space4)
     }
 
     var connectionsFilterMenu: some View {
