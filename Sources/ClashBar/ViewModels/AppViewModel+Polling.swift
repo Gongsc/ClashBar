@@ -314,12 +314,27 @@ extension AppViewModel {
         self.trafficSamples = trimmed
     }
 
+    /// 裁剪依据是真实时间而非下标——面板关闭且状态栏为「仅图标」时流量流会停掉，恢复后的
+    /// 序列里存在真实空档，按下标裁剪会把空档压缩掉。`maxTrafficSampleCount` 只是内存兜底，
+    /// 防止采样频率异常时无限增长。
     private func trimmedTrafficSamples(_ samples: [TrafficSample], now: Date) -> [TrafficSample] {
-        TrimTrafficHistoryUseCase().execute(.init(
-            samples: samples,
-            window: self.trafficHistoryWindow.duration,
-            now: now,
-            maxCount: self.maxTrafficSampleCount))
+        let cutoff = now.addingTimeInterval(-self.trafficHistoryWindow.duration)
+        var samples = samples
+
+        if let firstKept = samples.firstIndex(where: { $0.at >= cutoff }) {
+            if firstKept > 0 {
+                samples.removeFirst(firstKept)
+            }
+        } else {
+            samples.removeAll(keepingCapacity: true)
+        }
+
+        let maxCount = self.maxTrafficSampleCount
+        if maxCount > 0, samples.count > maxCount {
+            samples.removeFirst(samples.count - maxCount)
+        }
+
+        return samples
     }
 
     func resetTrafficTotalsForHiddenPanel() {
