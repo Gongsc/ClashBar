@@ -12,30 +12,38 @@ protocol MihomoControlling: AnyObject, Sendable {
     var status: CoreLifecycleStatus { get }
     var isRunning: Bool { get }
     var detectedBinaryPath: String? { get }
-    func validateConfigAsync(configPath: String) async throws
+    // workingDirectory 为 nil 时从 configPath 推导；规则覆写生成的运行时配置不在原目录，需要显式传原配置的工作目录。
+    func validateConfigAsync(configPath: String, workingDirectory: URL?) async throws
     @discardableResult
-    func startAsync(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+    func startAsync(configPath: String, workingDirectory: URL?, controller: String) async throws
+        -> CoreLifecycleStatus
     func stop()
     func stopAsync() async
     @discardableResult
-    func restartAsync(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+    func restartAsync(configPath: String, workingDirectory: URL?, controller: String) async throws
+        -> CoreLifecycleStatus
 
-    func validateConfig(configPath: String) async throws
+    func validateConfig(configPath: String, workingDirectory: URL?) async throws
     @discardableResult
-    func start(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+    func start(configPath: String, workingDirectory: URL?, controller: String) async throws -> CoreLifecycleStatus
     func stopImmediately()
     @discardableResult
-    func restart(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+    func restart(configPath: String, workingDirectory: URL?, controller: String) async throws
+        -> CoreLifecycleStatus
 }
 
 extension MihomoControlling {
-    func validateConfig(configPath: String) async throws {
-        try await self.validateConfigAsync(configPath: configPath)
+    func validateConfig(configPath: String, workingDirectory: URL? = nil) async throws {
+        try await self.validateConfigAsync(configPath: configPath, workingDirectory: workingDirectory)
     }
 
     @discardableResult
-    func start(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
-        try await self.startAsync(configPath: configPath, controller: controller)
+    func start(
+        configPath: String,
+        workingDirectory: URL? = nil,
+        controller: String) async throws -> CoreLifecycleStatus
+    {
+        try await self.startAsync(configPath: configPath, workingDirectory: workingDirectory, controller: controller)
     }
 
     func stopImmediately() {
@@ -47,8 +55,12 @@ extension MihomoControlling {
     }
 
     @discardableResult
-    func restart(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
-        try await self.restartAsync(configPath: configPath, controller: controller)
+    func restart(
+        configPath: String,
+        workingDirectory: URL? = nil,
+        controller: String) async throws -> CoreLifecycleStatus
+    {
+        try await self.restartAsync(configPath: configPath, workingDirectory: workingDirectory, controller: controller)
     }
 }
 
@@ -213,10 +225,10 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
         stop()
     }
 
-    func validateConfig(configPath: String) throws {
+    func validateConfig(configPath: String, workingDirectory: URL? = nil) throws {
         let binary = try resolveMihomoBinary()
 
-        let workingDirectoryURL = Self.resolveWorkingDirectoryURL(configPath: configPath)
+        let workingDirectoryURL = workingDirectory ?? Self.resolveWorkingDirectoryURL(configPath: configPath)
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binary)
@@ -271,14 +283,14 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
         }
     }
 
-    func validateConfigAsync(configPath: String) async throws {
+    func validateConfigAsync(configPath: String, workingDirectory: URL?) async throws {
         try await self.runBlockingOperation(on: self.validationQueue) {
-            try self.validateConfig(configPath: configPath)
+            try self.validateConfig(configPath: configPath, workingDirectory: workingDirectory)
         }
     }
 
     @discardableResult
-    func start(configPath: String, controller: String) throws -> CoreLifecycleStatus {
+    func start(configPath: String, workingDirectory: URL? = nil, controller: String) throws -> CoreLifecycleStatus {
         if let runningPid = lock.withLock({ process?.isRunning == true ? process?.processIdentifier : nil }) {
             return .running(pid: runningPid)
         }
@@ -292,7 +304,7 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binary)
 
-        let workingDirectoryURL = Self.resolveWorkingDirectoryURL(configPath: configPath)
+        let workingDirectoryURL = workingDirectory ?? Self.resolveWorkingDirectoryURL(configPath: configPath)
         proc.currentDirectoryURL = workingDirectoryURL
 
         let args = ["-d", workingDirectoryURL.path, "-f", configPath, "-ext-ctl", controller]
@@ -340,9 +352,13 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
     }
 
     @discardableResult
-    func startAsync(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
+    func startAsync(
+        configPath: String,
+        workingDirectory: URL?,
+        controller: String) async throws -> CoreLifecycleStatus
+    {
         try await self.runBlockingOperation(on: self.lifecycleQueue) {
-            try self.start(configPath: configPath, controller: controller)
+            try self.start(configPath: configPath, workingDirectory: workingDirectory, controller: controller)
         }
     }
 
@@ -387,15 +403,19 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
     }
 
     @discardableResult
-    func restart(configPath: String, controller: String) throws -> CoreLifecycleStatus {
+    func restart(configPath: String, workingDirectory: URL? = nil, controller: String) throws -> CoreLifecycleStatus {
         self.stop()
-        return try self.start(configPath: configPath, controller: controller)
+        return try self.start(configPath: configPath, workingDirectory: workingDirectory, controller: controller)
     }
 
     @discardableResult
-    func restartAsync(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
+    func restartAsync(
+        configPath: String,
+        workingDirectory: URL?,
+        controller: String) async throws -> CoreLifecycleStatus
+    {
         try await self.runBlockingOperation(on: self.lifecycleQueue) {
-            try self.restart(configPath: configPath, controller: controller)
+            try self.restart(configPath: configPath, workingDirectory: workingDirectory, controller: controller)
         }
     }
 
@@ -671,7 +691,7 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
         }
     }
 
-    private static func resolveWorkingDirectoryURL(configPath: String) -> URL {
+    static func resolveWorkingDirectoryURL(configPath: String) -> URL {
         let configDirectoryURL = URL(fileURLWithPath: configPath)
             .standardizedFileURL
             .deletingLastPathComponent()

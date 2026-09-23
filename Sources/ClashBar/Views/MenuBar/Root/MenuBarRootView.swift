@@ -9,6 +9,7 @@ enum RootTab: String, CaseIterable, Hashable {
     case connections
     case logs
     case system
+    case overrides
 
     var titleKey: String {
         switch self {
@@ -17,6 +18,7 @@ enum RootTab: String, CaseIterable, Hashable {
         case .connections: "ui.tab.connections"
         case .logs: "ui.tab.logs"
         case .system: "ui.tab.system"
+        case .overrides: "ui.tab.overrides"
         }
     }
 
@@ -27,6 +29,7 @@ enum RootTab: String, CaseIterable, Hashable {
         case .connections: "link"
         case .logs: "doc.fill"
         case .system: "gearshape.fill"
+        case .overrides: "arrow.triangle.branch"
         }
     }
 }
@@ -191,12 +194,14 @@ struct MenuBarRootView: TranslatingView {
             LogsTabView()
         case .system:
             SystemTabView()
+        case .overrides:
+            OverrideTabView()
         }
     }
 
     func tabUsesDynamicHeight(_ tab: RootTab) -> Bool {
         switch tab {
-        case .proxy, .system:
+        case .proxy, .system, .overrides:
             true
         case .rules, .connections, .logs:
             false
@@ -244,7 +249,7 @@ struct MenuBarRootView: TranslatingView {
         switch tab {
         case .proxy:
             Task { await self.appViewModel.refreshSystemProxyHelperRuntimeSnapshot() }
-        case .system, .rules, .connections, .logs:
+        case .system, .rules, .connections, .logs, .overrides:
             break
         }
     }

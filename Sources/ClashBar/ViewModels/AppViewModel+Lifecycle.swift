@@ -36,8 +36,9 @@ extension AppViewModel {
             }
 
             settingsOverlay = try await prepareTunOverlayForCoreStartup(settingsOverlay)
+            let launch = try self.prepareCoreLaunchConfig(configPath: configPath)
 
-            guard await self.validateConfigBeforeCoreLaunch(configPath: configPath) else {
+            guard await self.validateCoreLaunchConfig(launch) else {
                 preserveLocalSettingsOnNextSync = false
                 if trigger == .auto {
                     let fileName = URL(fileURLWithPath: configPath).lastPathComponent
@@ -53,7 +54,11 @@ extension AppViewModel {
 
             let launchController = applyExternalControllerFromSelectedConfigFile(configPath: configPath)
             statusText = "Starting"
-            _ = try await self.processManager.start(configPath: configPath, controller: launchController)
+            _ = try await self.processManager.start(
+                configPath: launch.path,
+                workingDirectory: launch.workingDirectory,
+                controller: launchController)
+            self.markRuleOverrideApplied(launch)
 
             await self.completeCoreBootstrap(
                 configPath: configPath,
@@ -124,7 +129,8 @@ extension AppViewModel {
                 return
             }
 
-            guard await self.validateConfigBeforeCoreLaunch(configPath: configPath) else {
+            let launch = try self.prepareCoreLaunchConfig(configPath: configPath)
+            guard await self.validateCoreLaunchConfig(launch) else {
                 preserveLocalSettingsOnNextSync = false
                 return
             }
@@ -136,7 +142,11 @@ extension AppViewModel {
                 transitionKind: .restart,
                 disableRuntimeTunBeforeStop: false)
             let settingsOverlay = self.overlayApplyingPendingCoreFeatureRecovery(currentEditableSettingsSnapshot())
-            _ = try await self.processManager.restart(configPath: configPath, controller: launchController)
+            _ = try await self.processManager.restart(
+                configPath: launch.path,
+                workingDirectory: launch.workingDirectory,
+                controller: launchController)
+            self.markRuleOverrideApplied(launch)
             await self.completeCoreBootstrap(
                 configPath: configPath,
                 settingsOverlay: settingsOverlay,
@@ -257,19 +267,9 @@ extension AppViewModel {
         return CoreMode(rawValue: raw.lowercased())
     }
 
-    @discardableResult
-    func validateConfigBeforeCoreLaunch(configPath: String) async -> Bool {
-        guard let details = await self.configValidationFailureDetails(configPath: configPath) else {
-            return true
-        }
-
-        self.handleConfigValidationFailure(configPath: configPath, details: details)
-        return false
-    }
-
-    func configValidationFailureDetails(configPath: String) async -> String? {
+    func configValidationFailureDetails(configPath: String, workingDirectory: URL? = nil) async -> String? {
         do {
-            try await self.processManager.validateConfig(configPath: configPath)
+            try await self.processManager.validateConfig(configPath: configPath, workingDirectory: workingDirectory)
             return nil
         } catch {
             let detailsRaw = self.coreErrorMessage(error).trimmingCharacters(in: .whitespacesAndNewlines)

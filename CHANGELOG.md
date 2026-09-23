@@ -1,3 +1,21 @@
+## v1.1.0
+
+![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v1.1.0-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
+
+> 参考 OpenClash 的自定义规则，新增「覆写」页：在订阅规则前后插入自己的规则与规则集，订阅更新后依然生效，原配置文件不会被修改。
+
+### 📝 更新日志 (Changelog)
+
+**✨ 新增功能 (New Features)**
+
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **规则覆写**：设置之后新增「覆写」页（`⌥⌘6`），可维护前置规则、追加规则与规则集三份文件。前置规则插在订阅 rules 最前面，追加规则插在 `MATCH` 之前，规则集与订阅同名时以覆写为准。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **外部编辑、保存即生效**：「编辑」用默认编辑器打开 `overrides/` 下的文件（首次自动生成带注释的模板），保存后自动重载；只改注释或内容未变时不重载。
+
+**🚀 优化改进 (Improvements)**
+
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **覆写失败不静默回退**：生成或 `mihomo -t` 校验失败时直接报错并在覆写页显示原因，不会悄悄以原配置启动。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **相对路径保持可用**：运行时配置写在 `state/runtime/`，但核心工作目录仍取原配置所在目录，订阅里 `./ruleset/...` 等相对路径不受影响。
+
 ## v1.0.0
 
 ![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v1.0.0-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square) ![Upstream](https://img.shields.io/badge/Fork_of-ClashBar_v0.3.3-8B5CF6?style=flat-square)

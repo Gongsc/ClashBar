@@ -89,6 +89,7 @@ extension AppViewModel {
         }
 
         self.startConfigDirectoryMonitoringIfNeeded()
+        self.startRuleOverrideMonitoringIfNeeded()
         if self.autoStartCore {
             if !self.shouldDeferAutoStartForMissingManagedCore() {
                 self.autoStartTask = Task { [weak self] in

@@ -144,6 +144,8 @@ private struct AppCommands: Commands {
             }
             Button(self.tr("ui.tab.system")) { self.session.setActiveMenuTab(.system) }
                 .keyboardShortcut("5", modifiers: [.command, .option])
+            Button(self.tr("ui.tab.overrides")) { self.session.setActiveMenuTab(.overrides) }
+                .keyboardShortcut("6", modifiers: [.command, .option])
         }
     }
 

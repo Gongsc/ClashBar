@@ -187,6 +187,7 @@ final class AppViewModel: ObservableObject {
     }
 
     let logsStore = LogsStore()
+    let ruleOverrideStore = RuleOverrideStore()
     var errorLogs: [AppErrorLogEntry] {
         get { self.logsStore.errorLogs }
         set { self.logsStore.errorLogs = newValue }

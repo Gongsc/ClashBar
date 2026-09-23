@@ -193,7 +193,7 @@ extension AppViewModel {
             await refreshProvidersAndRules()
         case .connections:
             await self.refreshConnections()
-        case .logs:
+        case .logs, .overrides:
             break
         case .system:
             await self.refreshMediumFrequency()
@@ -394,7 +394,7 @@ extension AppViewModel {
             if !self.isRemoteTarget {
                 await self.refreshSystemProxyStatus()
             }
-        case .connections, .logs:
+        case .connections, .logs, .overrides:
             break
         }
     }

@@ -325,7 +325,7 @@ extension AppViewModel {
                 appendLog(level: "error", message: tr("log.start.no_config"))
                 return
             }
-            try await self.clientOrThrow().requestNoResponse(.putConfigs(force: false, path: configPath, payload: nil))
+            try await self.putSelectedConfig(configPath: configPath)
             try await self.restoreTunAfterConfigReloadIfNeeded(expectedEnabled: expectedTunEnabled)
             appendLog(level: "info", message: tr("log.action.success", actionName))
         } catch {
