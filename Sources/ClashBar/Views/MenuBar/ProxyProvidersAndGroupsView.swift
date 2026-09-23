@@ -489,27 +489,6 @@ extension ProxyTabView {
         }
     }
 
-    @ViewBuilder
-    func popoverNodesList<Node: Hashable>(
-        _ nodes: [Node],
-        @ViewBuilder row: @escaping (Node) -> some View) -> some View
-    {
-        if nodes.isEmpty {
-            Text(tr("ui.common.na"))
-                .font(.app(size: T.FontSize.caption, weight: .regular))
-                .foregroundStyle(nativeSecondaryLabel)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, T.space6)
-                .padding(.vertical, T.space4)
-        } else {
-            VStack(spacing: 0) {
-                ForEach(nodes, id: \.self) { node in
-                    row(node)
-                }
-            }
-        }
-    }
-
     func orderedUniqueNames(_ names: [String]) -> [String] {
         var seen: Set<String> = []
         var ordered: [String] = []

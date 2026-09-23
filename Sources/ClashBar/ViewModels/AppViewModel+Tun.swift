@@ -48,6 +48,63 @@ extension AppViewModel {
         }
     }
 
+    static let mipsStackMinimumCoreVersion = "1.19.31"
+
+    var isMipsStackSupported: Bool {
+        guard let current = AppSemanticVersion(self.version),
+              let minimum = AppSemanticVersion(Self.mipsStackMinimumCoreVersion)
+        else {
+            return false
+        }
+        return current >= minimum
+    }
+
+    func selectTunStack(_ stack: String) async {
+        guard !isTunSyncing else { return }
+
+        if stack.caseInsensitiveCompare("mips") == .orderedSame, !self.isMipsStackSupported {
+            let detail = tr("app.tun.mips_requires_upgrade", Self.mipsStackMinimumCoreVersion)
+            self.statusItemBanner = StatusItemBanner(
+                symbolName: "exclamationmark.triangle.fill",
+                title: tr("ui.quick.tun_mode"),
+                primaryDetail: detail,
+                secondaryDetail: nil)
+            appendLog(level: "warning", message: detail)
+            return
+        }
+
+        if isTunEnabled, tunStack?.caseInsensitiveCompare(stack) == .orderedSame {
+            return
+        }
+
+        isTunSyncing = true
+        defer { isTunSyncing = false }
+
+        do {
+            if !self.isRemoteTarget {
+                try await self.ensureTunPermissions(requestIfMissing: true)
+            }
+            guard self.isRemoteTarget || self.isRuntimeRunning else { return }
+
+            try await self.patchTunConfig(enable: true, stack: stack)
+
+            let config = try await fetchRuntimeConfigSnapshot()
+            isTunEnabled = config.tunEnabled ?? false
+            persistEditableSettingsSnapshot()
+
+            if isTunEnabled {
+                appendLog(level: "info", message: tr("log.tun.stack_changed", stack))
+            } else {
+                appendLog(
+                    level: "error",
+                    message: tr("log.tun.toggle_failed", tr("app.tun.error.runtime_state_mismatch")))
+            }
+        } catch {
+            appendLog(level: "error", message: tr("log.tun.toggle_failed", self.tunErrorMessage(error)))
+            await self.refreshTunStatusFromRuntimeConfig()
+        }
+    }
+
     func prepareTunOverlayForCoreStartup(_ overlay: EditableSettingsSnapshot) async throws -> EditableSettingsSnapshot {
         guard overlay.tunEnabled else { return overlay }
 
@@ -109,7 +166,7 @@ extension AppViewModel {
     }
 
     func resolvedMihomoBinaryPath() -> String? {
-        if let detected = coreRepository.detectedBinaryPath,
+        if let detected = processManager.detectedBinaryPath,
            !detected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             return detected
@@ -128,13 +185,13 @@ extension AppViewModel {
         }
 
         do {
-            try self.tunPermissionRepository.validateCurrentPermissions(binaryPath: binaryPath)
+            try self.tunPermissionService.validateCurrentPermissions(binaryPath: binaryPath)
         } catch TunPermissionServiceError.permissionMissing {
             guard requestIfMissing else {
                 throw TunPermissionServiceError.permissionMissing
             }
             appendLog(level: "info", message: tr("log.tun.permission_requesting"))
-            try await self.tunPermissionRepository.grantPermissions(binaryPath: binaryPath)
+            try await self.tunPermissionService.grantPermissions(binaryPath: binaryPath)
             appendLog(level: "info", message: tr("log.tun.permission_granted"))
         }
     }
@@ -175,19 +232,17 @@ extension AppViewModel {
         }
     }
 
-    func patchTunConfig(enable: Bool) async throws {
+    func patchTunConfig(enable: Bool, stack: String? = nil) async throws {
         let client = try clientOrThrow()
         var tunBody: [String: JSONValue] = ["enable": .bool(enable)]
 
-        if enable, await !self.selectedConfigDeclaresTunStack() {
+        if let stack {
+            tunBody["stack"] = .string(stack)
+        } else if enable, await !self.selectedConfigDeclaresTunStack() {
             tunBody["stack"] = .string("mixed")
         }
 
-        var body: [String: JSONValue] = ["tun": .object(tunBody)]
-        if enable {
-            body["dns"] = .object(["enable": .bool(true)])
-        }
-        try await client.requestNoResponse(.patchConfigs(body: body))
+        try await client.requestNoResponse(.patchConfigs(body: ["tun": .object(tunBody)]))
     }
 
     func ensureTunMixedStackOnStartupIfNeeded() async {
@@ -198,15 +253,10 @@ extension AppViewModel {
             guard config.tunEnabled == true else { return }
             let hasConfiguredStack = await self.selectedConfigDeclaresTunStack()
 
-            let client = try clientOrThrow()
-            var body: [String: JSONValue] = [
-                "dns": .object(["enable": .bool(true)]),
-            ]
             if !hasConfiguredStack {
-                body["tun"] = .object(["stack": .string("mixed")])
-            }
-            try await client.requestNoResponse(.patchConfigs(body: body))
-            if !hasConfiguredStack {
+                let client = try clientOrThrow()
+                try await client.requestNoResponse(
+                    .patchConfigs(body: ["tun": .object(["stack": .string("mixed")])]))
                 _ = try await fetchRuntimeConfigSnapshot()
             }
         } catch {
@@ -223,7 +273,7 @@ extension AppViewModel {
         }
 
         let lines = raw.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
-        guard let tunRange = self.topLevelBlockRange(for: "tun", lines: lines) else { return false }
+        guard let tunRange = Self.topLevelBlockRange(for: "tun", lines: lines) else { return false }
         return self.childLineExists(for: "stack", lines: lines, range: tunRange)
     }
 
@@ -244,8 +294,8 @@ extension AppViewModel {
         return false
     }
 
-    private func topLevelBlockRange(for key: String, lines: [String]) -> Range<Int>? {
-        guard let start = lines.firstIndex(where: { self.isTopLevelKeyLine($0, key: key) }) else {
+    static func topLevelBlockRange(for key: String, lines: [String]) -> Range<Int>? {
+        guard let start = lines.firstIndex(where: { isTopLevelKeyLine($0, key: key) }) else {
             return nil
         }
 
@@ -259,14 +309,14 @@ extension AppViewModel {
         return start..<end
     }
 
-    private func isTopLevelKeyLine(_ line: String, key: String) -> Bool {
+    static func isTopLevelKeyLine(_ line: String, key: String) -> Bool {
         guard line.prefix(while: { $0 == " " || $0 == "\t" }).isEmpty else { return false }
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return false }
         return trimmed == "\(key):" || trimmed.hasPrefix("\(key): ")
     }
 
-    private func isTopLevelMappingLine(_ line: String) -> Bool {
+    static func isTopLevelMappingLine(_ line: String) -> Bool {
         guard line.prefix(while: { $0 == " " || $0 == "\t" }).isEmpty else { return false }
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return false }

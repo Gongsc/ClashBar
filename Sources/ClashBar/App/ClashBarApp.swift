@@ -6,10 +6,13 @@ struct ClashBarApp: App {
     @NSApplicationDelegateAdaptor(ClashBarAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Settings { SettingsSceneHost() }
-            .commands {
-                AppCommands(session: self.appDelegate.appViewModel, appDelegate: self.appDelegate)
-            }
+        Settings {
+            SettingsWindowSuppressor()
+                .frame(width: 0, height: 0)
+        }
+        .commands {
+            AppCommands(session: self.appDelegate.appViewModel, appDelegate: self.appDelegate)
+        }
     }
 }
 
@@ -18,28 +21,20 @@ struct ClashBarApp: App {
 /// `CommandGroup(replacing: .appSettings)` 重定向过去，所以这个空窗口对用户毫无意义。
 /// 较新 SDK 构建出的版本会在启动时把它显示出来（标题为「<应用名> Settings」的空窗口），
 /// 这里在承载它的窗口出现的那一刻就关掉。
-private struct SettingsSceneHost: View {
-    var body: some View {
-        SettingsWindowCloser()
-    }
-}
-
-private struct SettingsWindowCloser: NSViewRepresentable {
+private struct SettingsWindowSuppressor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        self.closeHostingWindow(of: view)
-        return view
+        SuppressorNSView()
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        self.closeHostingWindow(of: nsView)
-    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
 
-    /// 视图刚创建时还没挂到窗口上，所以推迟到下一个主线程节拍再取 `window`。
-    /// 对已经关闭的窗口再调一次 `close()` 是无副作用的。
-    private func closeHostingWindow(of view: NSView) {
-        Task { @MainActor in
-            view.window?.close()
+    private final class SuppressorNSView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            window.alphaValue = 0
+            window.orderOut(nil)
+            window.close()
         }
     }
 }
@@ -106,8 +101,6 @@ private struct AppCommands: Commands {
 
             Divider()
 
-            // ponytail: KeyEquivalent folds the shift needed to type the character into the
-            // shortcut, so an uppercase "R" here silently means ⌘⇧R. Keep every letter lowercase.
             Button(self.tr("ui.quick.copy_terminal")) { self.session.copyLocalProxyCommand() }
                 .keyboardShortcut("c", modifiers: .command)
 
@@ -160,8 +153,6 @@ private struct AppCommands: Commands {
         (.direct, "ui.mode.direct", "bolt.fill", "3"),
     ]
 
-    /// Menu-bar shortcuts fire with no window on screen, so every one of them confirms itself the
-    /// way ⌘C already did — otherwise a working shortcut looks like a dead key.
     @MainActor
     private func showBanner(symbol: String, title: String, detail: String) {
         self.session.statusItemBanner = StatusItemBanner(

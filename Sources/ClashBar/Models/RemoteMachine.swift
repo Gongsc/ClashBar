@@ -46,11 +46,4 @@ enum MachineTarget: Equatable, Hashable {
         }
         return false
     }
-
-    var remoteMachine: RemoteMachine? {
-        if case let .remote(machine) = self {
-            return machine
-        }
-        return nil
-    }
 }

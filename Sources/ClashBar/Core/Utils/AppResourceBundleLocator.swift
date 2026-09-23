@@ -32,6 +32,24 @@ enum AppResourceBundleLocator {
         return self.deduplicated(roots)
     }
 
+    private static let candidateConfigTemplateRelativePaths = [
+        "ConfigTemplates/ClashBar.yaml",
+        "Resources/ConfigTemplates/ClashBar.yaml",
+        "ClashBar.yaml",
+    ]
+
+    static func bundledConfigTemplateURL(fileManager: FileManager = .default) -> URL? {
+        for root in self.candidateResourceRoots() {
+            for relativePath in self.candidateConfigTemplateRelativePaths {
+                let candidate = root.appendingPathComponent(relativePath, isDirectory: false)
+                if fileManager.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
+            }
+        }
+        return nil
+    }
+
     private static func candidateModuleBundleURLs() -> [URL] {
         var urls: [URL] = []
 

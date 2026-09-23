@@ -155,14 +155,6 @@ extension AppViewModel {
 
         publishUpdatingProgress()
 
-        do {
-            try await self.clientOrThrow().requestNoResponse(.putConfigs(force: true))
-            appendLog(level: "info", message: tr("log.providers.config_reload_success"))
-        } catch {
-            failed += 1
-            appendLog(level: "error", message: tr("log.providers.config_reload_failed", error.localizedDescription))
-        }
-
         guard checkpoint() else { return }
 
         let proxyResult = await self.updateProvidersSequential(
@@ -225,10 +217,15 @@ extension AppViewModel {
 
     func refreshProvidersAndRules() async {
         await runRefresh {
-            let snapshot = try await FetchProvidersAndRulesUseCase(transport: self.clientOrThrow()).execute()
-            let proxyProviders = snapshot.proxyProviders
-            let ruleProviders = snapshot.ruleProviders
-            let rules = snapshot.rules
+            let client = try self.clientOrThrow()
+            async let proxyProvidersTask: ProviderSummary = client.request(.proxyProviders)
+            async let ruleProvidersTask: ProviderSummary = client.request(.ruleProviders)
+            async let rulesTask: RulesSummary = client.request(.rules)
+
+            let (proxyProviders, ruleProviders, rules) = try await (
+                proxyProvidersTask,
+                ruleProvidersTask,
+                rulesTask)
 
             let filteredProxyProviders = proxyProviders.providers.filter { key, detail in
                 self.shouldIncludeProxyProvider(named: key, detail: detail)

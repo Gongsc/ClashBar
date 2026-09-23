@@ -55,7 +55,6 @@ final class AppLogStore: @unchecked Sendable {
         }
     }
 
-    /// Waits for all previously submitted log operations to finish.
     func flush() {
         self.ioQueue.sync {}
     }

@@ -104,9 +104,13 @@ extension AppViewModel {
                 else {
                     continue
                 }
-                try self.writeConfigData(data, to: targetURL)
+                let didWrite = try self.writeConfigData(data, to: targetURL)
                 self.remoteConfigSubscriptions[fileName] = refreshedSubscription
-                updatedFileNames.insert(fileName)
+                if didWrite {
+                    updatedFileNames.insert(fileName)
+                    self.refreshConfigStateAfterMutation()
+                    self.syncConfigSignatureSnapshotToMonitorBaseline()
+                }
             } catch {
                 guard let refreshedSubscription = self.checkedRemoteConfigSubscription(
                     for: fileName,
@@ -124,7 +128,6 @@ extension AppViewModel {
         }
 
         self.persistRemoteConfigSubscriptions()
-        self.refreshConfigStateAfterMutation()
         appendLog(level: "info", message: tr("log.config.remote.update_summary", updatedFileNames.count, failedCount))
 
         if self.shouldAutoReloadCurrentConfig(updatedFileNames: updatedFileNames) {
@@ -148,15 +151,15 @@ extension AppViewModel {
         }
 
         self.removeRemoteConfigSubscription(for: fileName)
-        _ = configRepository.reloadConfigs()
+        _ = configService.reloadConfigs()
         syncConfigDisplayState()
 
         appendLog(level: "info", message: tr("log.config.delete.success", fileName))
 
         guard isDeletingSelected else { return }
 
-        if let nextConfig = configRepository.availableConfigs.first {
-            configRepository.selectConfig(nextConfig)
+        if let nextConfig = configService.availableConfigs.first {
+            configService.selectConfig(nextConfig)
             let nextName = nextConfig.lastPathComponent
             selectedConfigName = nextName
             defaults.set(nextName, forKey: selectedConfigKey)
@@ -185,7 +188,7 @@ extension AppViewModel {
 
     func showSelectedConfigInFinder() {
         guard let configDirectory = ensureConfigDirectoryAvailable() else { return }
-        if let selected = configRepository.selectedConfig, FileManager.default.fileExists(atPath: selected.path) {
+        if let selected = configService.selectedConfig, FileManager.default.fileExists(atPath: selected.path) {
             NSWorkspace.shared.activateFileViewerSelecting([selected])
             return
         }
@@ -214,7 +217,7 @@ extension AppViewModel {
     func reloadConfigFileList() {
         guard self.ensureConfigDirectoryAvailable() != nil else { return }
         self.refreshConfigStateAfterMutation()
-        appendLog(level: "info", message: tr("log.config.loaded_count", configRepository.availableConfigs.count))
+        appendLog(level: "info", message: tr("log.config.loaded_count", configService.availableConfigs.count))
     }
 
     func refreshRemoteConfigMenuStates() {
@@ -277,14 +280,18 @@ extension AppViewModel {
                 return
             }
             let targetURL = configDirectory.appendingPathComponent(fileName, isDirectory: false)
-            try self.writeConfigData(data, to: targetURL)
+            let didWrite = try self.writeConfigData(data, to: targetURL)
 
             self.remoteConfigSubscriptions[fileName] = refreshedSubscription
             self.persistRemoteConfigSubscriptions()
-            self.refreshConfigStateAfterMutation()
 
-            if self.shouldAutoReloadCurrentConfig(updatedFileNames: [fileName]) {
-                await self.reloadConfig()
+            if didWrite {
+                self.refreshConfigStateAfterMutation()
+                self.syncConfigSignatureSnapshotToMonitorBaseline()
+
+                if self.shouldAutoReloadCurrentConfig(updatedFileNames: [fileName]) {
+                    await self.reloadConfig()
+                }
             }
 
             self.setRemoteConfigMenuState(
@@ -314,7 +321,11 @@ extension AppViewModel {
 
         do {
             ensureAPIClient()
-            try await self.clientOrThrow().requestNoResponse(.putConfigs(force: false))
+            guard let configPath = await self.resolveSelectedConfigPath() else {
+                appendLog(level: "error", message: tr("log.start.no_config"))
+                return
+            }
+            try await self.clientOrThrow().requestNoResponse(.putConfigs(force: false, path: configPath, payload: nil))
             try await self.restoreTunAfterConfigReloadIfNeeded(expectedEnabled: expectedTunEnabled)
             appendLog(level: "info", message: tr("log.action.success", actionName))
         } catch {
@@ -323,15 +334,15 @@ extension AppViewModel {
     }
 
     func ensureConfigDirectoryAvailable() -> URL? {
-        if let configDirectory = configRepository.configDirectory {
+        if let configDirectory = configService.configDirectory {
             return configDirectory
         }
 
         do {
             try workingDirectoryManager.bootstrapDirectories()
-            configRepository.setConfigDirectory(workingDirectoryManager.configDirectoryURL)
+            configService.setConfigDirectory(workingDirectoryManager.configDirectoryURL)
             self.refreshConfigStateAfterMutation()
-            return configRepository.configDirectory
+            return configService.configDirectory
         } catch {
             appendLog(level: "error", message: tr("log.working_dir_init_failed", error.localizedDescription))
             return nil
@@ -339,8 +350,8 @@ extension AppViewModel {
     }
 
     private func refreshConfigStateAfterMutation() {
-        _ = configRepository.reloadConfigs()
-        if self.syncSelectedConfigSelection(configRepository.selectedConfig) == nil {
+        _ = configService.reloadConfigs()
+        if self.syncSelectedConfigSelection(configService.selectedConfig) == nil {
             selectedConfigName = "-"
             defaults.removeObject(forKey: selectedConfigKey)
         }
@@ -363,8 +374,9 @@ extension AppViewModel {
         return updatedFileNames.contains(selectedConfigName)
     }
 
-    func writeConfigData(_ data: Data, to targetURL: URL) throws {
-        try configRepository.writeConfigData(data, to: targetURL)
+    @discardableResult
+    func writeConfigData(_ data: Data, to targetURL: URL) throws -> Bool {
+        try configService.writeConfigData(data, to: targetURL)
     }
 
     func confirmOverwriteConfig(named fileName: String) -> Bool {
@@ -463,19 +475,19 @@ extension AppViewModel {
     }
 
     func normalizedConfigFileName(_ fileName: String, fallback: String? = nil) -> String? {
-        configRepository.normalizedConfigFileName(fileName, fallback: fallback)
+        configService.normalizedConfigFileName(fileName, fallback: fallback)
     }
 
     private func inferredRemoteConfigFileName(from remoteURL: URL) -> String {
-        configRepository.inferredRemoteConfigFileName(from: remoteURL)
+        configService.inferredRemoteConfigFileName(from: remoteURL)
     }
 
     func isSupportedRemoteConfigURL(_ url: URL) -> Bool {
-        configRepository.isSupportedRemoteConfigURL(url)
+        configService.isSupportedRemoteConfigURL(url)
     }
 
     private func downloadRemoteConfigData(from remoteURL: URL, userAgent: String? = nil) async throws -> Data {
-        try await configRepository.downloadRemoteConfigData(from: remoteURL, userAgent: userAgent)
+        try await configService.downloadRemoteConfigData(from: remoteURL, userAgent: userAgent)
     }
 
     private static let defaultMihomoVersionForUserAgent = "v1.19.27"
@@ -547,7 +559,7 @@ extension AppViewModel {
     }
 
     private func remoteConfigUpdatedAt(for fileName: String) -> Date? {
-        guard let configURL = self.configRepository.availableConfigs.first(where: { $0.lastPathComponent == fileName })
+        guard let configURL = self.configService.availableConfigs.first(where: { $0.lastPathComponent == fileName })
         else {
             return nil
         }

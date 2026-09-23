@@ -70,7 +70,7 @@ extension AppViewModel {
             self.statusText = (self.apiStatus == .healthy || self.apiStatus == .degraded)
                 ? "Running" : "Stopped"
         case .local:
-            if !self.coreRepository.isRunning {
+            if !self.processManager.isRunning {
                 self.statusText = "Stopped"
             }
         }

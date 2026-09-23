@@ -40,22 +40,6 @@ struct SeparatedForEach<Element: Equatable, ID: Hashable, RowContent: View>: Vie
     }
 }
 
-struct MeasurementAwareVStack<Content: View>: View {
-    let alignment: HorizontalAlignment
-    let spacing: CGFloat
-    @ViewBuilder let content: Content
-
-    init(alignment: HorizontalAlignment = .center, spacing: CGFloat = 0, @ViewBuilder content: () -> Content) {
-        self.alignment = alignment
-        self.spacing = spacing
-        self.content = content()
-    }
-
-    var body: some View {
-        LazyVStack(alignment: self.alignment, spacing: self.spacing) { self.content }
-    }
-}
-
 struct CompactSelectionMenuConfiguration<Option: Hashable & Identifiable> {
     let selection: Option
     let options: [Option]
@@ -194,19 +178,6 @@ extension MenuBarRootView {
         }
     }
 
-    var footerCoreUpgradeBackground: Color {
-        switch self.appViewModel.coreUpgradeState {
-        case .idle:
-            self.nativeBadgeFill
-        case .running:
-            self.nativeAccent.opacity(T.Opacity.tint)
-        case .succeeded, .alreadyLatest:
-            self.nativePositive.opacity(T.Opacity.tint)
-        case .failed:
-            self.nativeCritical.opacity(T.Opacity.tint)
-        }
-    }
-
     var footerCoreUpgradeButtonHelp: String {
         if !self.appViewModel.isRuntimeRunning {
             return tr("ui.footer.core_upgrade.help.disabled")
@@ -284,10 +255,6 @@ extension MenuBarRootView {
         .padding(.horizontal, T.space6)
         .padding(.vertical, T.space2)
     }
-
-    var appVersionText: String {
-        self.appViewModel.currentAppVersionText
-    }
 }
 
 extension TranslatingView {
@@ -298,15 +265,6 @@ extension TranslatingView {
         case .starting: self.nativeInfo.opacity(T.Opacity.solid)
         case .failed: self.nativeCritical.opacity(T.Opacity.solid)
         case .stopped: self.nativeSecondaryLabel
-        }
-    }
-
-    var runtimeBadgeText: String {
-        switch appViewModel.runtimeVisualStatus {
-        case .runningHealthy, .runningDegraded: tr("ui.header.status.running")
-        case .starting: tr("ui.header.status.starting")
-        case .failed: tr("ui.header.status.failed")
-        case .stopped: tr("ui.header.status.stopped")
         }
     }
 }
@@ -401,7 +359,6 @@ extension View {
         Capsule(style: .continuous).fill(self.nativeBadgeFill)
     }
 
-    /// 统一的筛选 chip：选中为实心强调色 + 白字，未选为浅底胶囊 + 次级文字。可选尾随计数。
     func filterChip(
         title: String,
         count: Int? = nil,
@@ -466,6 +423,20 @@ extension View {
                         self.nativeControlBorder.opacity(self.isDarkAppearance ? 0.40 : 0.12),
                         lineWidth: T.stroke)
             }
+    }
+
+    func tabControlCard(@ViewBuilder _ content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: T.space4) {
+            content()
+        }
+        .menuRowPadding(vertical: T.space4)
+    }
+
+    func filterTextField(_ placeholder: String, text: Binding<String>) -> some View {
+        TextField(placeholder, text: text)
+            .textFieldStyle(.roundedBorder)
+            .font(.app(size: T.FontSize.body, weight: .regular))
+            .foregroundStyle(self.nativePrimaryLabel)
     }
 
     func emptyCard(_ text: String) -> some View {

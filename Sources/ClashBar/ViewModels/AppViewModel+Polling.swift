@@ -80,6 +80,7 @@ extension AppViewModel {
             cancelProxyPortsAutoSave()
             // 曲线历史刻意不在这里清空：它只活在内存里，面板重新打开时应当接着展示。
             // 真正该重置的时机是内核停止或切换目标机器，由 resetTrafficPresentation() 负责。
+            self.resetTrafficTotalsForHiddenPanel()
             self.releasePanelCachedData()
         }
         trimInMemoryLogsForCurrentVisibility()
@@ -115,21 +116,46 @@ extension AppViewModel {
         panelPresented: Bool,
         activeTab: RootTab) -> DataAcquisitionPolicy
     {
-        DetermineDataAcquisitionPolicyUseCase().execute(.init(
-            panelPresented: panelPresented,
-            activeTab: activeTab,
-            statusBarDisplayMode: self.statusBarDisplayMode,
-            recordTrafficWhileHidden: self.recordsTrafficWhileHidden,
-            foregroundMediumFrequencyIntervalNanoseconds: self.foregroundMediumFrequencyIntervalNanoseconds,
-            backgroundMediumFrequencyIntervalNanoseconds: self.backgroundMediumFrequencyIntervalNanoseconds,
-            foregroundLowFrequencyPrimaryTabsIntervalNanoseconds: self
-                .foregroundLowFrequencyPrimaryTabsIntervalNanoseconds,
-            foregroundLowFrequencyOtherTabsIntervalNanoseconds: self.foregroundLowFrequencyOtherTabsIntervalNanoseconds,
-            backgroundLowFrequencyIntervalNanoseconds: self.backgroundLowFrequencyIntervalNanoseconds))
+        // 面板关闭且状态栏为「仅图标」时，流量流本会被停掉，曲线因此留下空档。
+        // recordsTrafficWhileHidden 让流量流继续跑，代价是应用不再完全空闲（每秒醒一次）。
+        let trafficEnabled = panelPresented
+            || self.statusBarDisplayMode != .iconOnly
+            || self.recordsTrafficWhileHidden
+
+        if !panelPresented {
+            return DataAcquisitionPolicy(
+                enableTrafficStream: trafficEnabled,
+                enableMemoryStream: false,
+                enableConnectionsStream: false,
+                connectionsIntervalMilliseconds: nil,
+                enableLogsStream: false,
+                mediumFrequencyIntervalNanoseconds: self.backgroundMediumFrequencyIntervalNanoseconds,
+                lowFrequencyIntervalNanoseconds: self.backgroundLowFrequencyIntervalNanoseconds)
+        }
+
+        let lowFrequencyInterval: UInt64 = switch activeTab {
+        case .proxy, .rules:
+            self.foregroundLowFrequencyPrimaryTabsIntervalNanoseconds
+        default:
+            self.foregroundLowFrequencyOtherTabsIntervalNanoseconds
+        }
+
+        let memoryEnabled = activeTab == .proxy
+        let connectionsEnabled = activeTab == .proxy || activeTab == .connections
+        let logsEnabled = activeTab == .logs
+
+        return DataAcquisitionPolicy(
+            enableTrafficStream: trafficEnabled,
+            enableMemoryStream: memoryEnabled,
+            enableConnectionsStream: connectionsEnabled,
+            connectionsIntervalMilliseconds: connectionsEnabled ? 1000 : nil,
+            enableLogsStream: logsEnabled,
+            mediumFrequencyIntervalNanoseconds: self.foregroundMediumFrequencyIntervalNanoseconds,
+            lowFrequencyIntervalNanoseconds: lowFrequencyInterval)
     }
 
     func updateDataAcquisitionPolicy() {
-        guard self.isRemoteTarget || self.coreRepository.isRunning else {
+        guard self.isRemoteTarget || self.processManager.isRunning else {
             self.ensurePeriodicTasksForCurrentVisibility()
             mediumFrequencyIntervalNanoseconds = foregroundMediumFrequencyIntervalNanoseconds
             lowFrequencyIntervalNanoseconds = foregroundLowFrequencyPrimaryTabsIntervalNanoseconds
@@ -147,7 +173,7 @@ extension AppViewModel {
     }
 
     func refreshForActivatedTab(_ tab: RootTab, generation: Int? = nil) async {
-        guard self.isRemoteTarget || self.coreRepository.isRunning else { return }
+        guard self.isRemoteTarget || self.processManager.isRunning else { return }
 
         func shouldContinueRefresh() -> Bool {
             guard let generation else { return true }
@@ -178,23 +204,42 @@ extension AppViewModel {
         }
     }
 
+    private func fetchProxyProvidersSummarySafely(client: any MihomoAPITransporting) async
+    -> (providers: [String: ProviderDetail], error: Error?) {
+        do {
+            let providers: ProviderSummary = try await client.request(.proxyProviders)
+            return (providers.providers, nil)
+        } catch {
+            return ([:], error)
+        }
+    }
+
     private func refreshMediumFrequency() async {
-        guard isPanelPresented else { return }
         await runRefresh {
             let client = try self.clientOrThrow()
-            let snapshot = try await FetchMediumFrequencySnapshotUseCase(
-                transport: client,
-                includeProxyGroups: self.activeMenuTab == .proxy)
-                .execute()
+            async let versionTask: VersionInfo = client.request(.version)
+            async let configTask: ConfigSnapshot = client.request(.getConfigs)
 
-            self.version = snapshot.versionInfo.version
-            self.applyRuntimeConfigSnapshot(snapshot.configSnapshot)
+            if self.activeMenuTab == .proxy {
+                async let proxyGroupsTask: ProxyGroupsResponse = client.request(.proxies)
+                async let providersTask = self.fetchProxyProvidersSummarySafely(client: client)
 
-            if let proxyGroupsPayload = snapshot.proxyGroupsPayload {
-                self.noteProxyProvidersAPIAvailability(error: proxyGroupsPayload.providersError)
+                let (versionInfo, configSnapshot, resolvedGroups, providersResult) = try await (
+                    versionTask,
+                    configTask,
+                    proxyGroupsTask,
+                    providersTask)
+
+                self.version = versionInfo.version
+                self.applyRuntimeConfigSnapshot(configSnapshot)
+                self.noteProxyProvidersAPIAvailability(error: providersResult.error)
                 self.applyProxyGroupsResponse(
-                    proxyGroupsPayload.groups,
-                    proxyProviders: proxyGroupsPayload.providers)
+                    resolvedGroups,
+                    proxyProviders: providersResult.providers)
+            } else {
+                let (versionInfo, configSnapshot) = try await (versionTask, configTask)
+                self.version = versionInfo.version
+                self.applyRuntimeConfigSnapshot(configSnapshot)
             }
         }
     }
@@ -218,6 +263,8 @@ extension AppViewModel {
         redirPort = config.redirPort
         tproxyPort = config.tproxyPort
         mixedPort = config.mixedPort ?? 0
+
+        tunStack = config.tun?.stack?.trimmedNonEmpty ?? tunStack
 
         if !self.isRemoteTarget, let externalController = config.externalController {
             applyExternalControllerFromConfig(externalController)
@@ -267,12 +314,33 @@ extension AppViewModel {
         self.trafficSamples = trimmed
     }
 
+    /// 裁剪依据是真实时间而非下标——面板关闭且状态栏为「仅图标」时流量流会停掉，恢复后的
+    /// 序列里存在真实空档，按下标裁剪会把空档压缩掉。`maxTrafficSampleCount` 只是内存兜底，
+    /// 防止采样频率异常时无限增长。
     private func trimmedTrafficSamples(_ samples: [TrafficSample], now: Date) -> [TrafficSample] {
-        TrimTrafficHistoryUseCase().execute(.init(
-            samples: samples,
-            window: self.trafficHistoryWindow.duration,
-            now: now,
-            maxCount: self.maxTrafficSampleCount))
+        let cutoff = now.addingTimeInterval(-self.trafficHistoryWindow.duration)
+        var samples = samples
+
+        if let firstKept = samples.firstIndex(where: { $0.at >= cutoff }) {
+            if firstKept > 0 {
+                samples.removeFirst(firstKept)
+            }
+        } else {
+            samples.removeAll(keepingCapacity: true)
+        }
+
+        let maxCount = self.maxTrafficSampleCount
+        if maxCount > 0, samples.count > maxCount {
+            samples.removeFirst(samples.count - maxCount)
+        }
+
+        return samples
+    }
+
+    func resetTrafficTotalsForHiddenPanel() {
+        displayUpTotal = 0
+        displayDownTotal = 0
+        lastTrafficSampleAt = nil
     }
 
     private func releasePanelCachedData() {
@@ -314,7 +382,6 @@ extension AppViewModel {
     }
 
     private func refreshLowFrequency() async {
-        guard isPanelPresented else { return }
         switch activeMenuTab {
         case .proxy:
             await refreshProvidersAndRules()
@@ -335,9 +402,12 @@ extension AppViewModel {
     func refreshProxyGroups() async {
         await runRefresh {
             let client = try self.clientOrThrow()
-            let payload = try await FetchProxyGroupsAndProvidersUseCase(transport: client).execute()
-            self.noteProxyProvidersAPIAvailability(error: payload.providersError)
-            self.applyProxyGroupsResponse(payload.groups, proxyProviders: payload.providers)
+            async let groupsTask: ProxyGroupsResponse = client.request(.proxies)
+            async let providersTask = self.fetchProxyProvidersSummarySafely(client: client)
+
+            let (resolvedGroups, providersResult) = try await (groupsTask, providersTask)
+            self.noteProxyProvidersAPIAvailability(error: providersResult.error)
+            self.applyProxyGroupsResponse(resolvedGroups, proxyProviders: providersResult.providers)
         }
     }
 
@@ -357,15 +427,73 @@ extension AppViewModel {
         _ response: ProxyGroupsResponse,
         proxyProviders: [String: ProviderDetail] = [:])
     {
-        let presentation = BuildProxyGroupsPresentationUseCase().execute(
-            response: response,
-            proxyProviders: proxyProviders,
-            fallbackProxyProviders: self.proxyProvidersDetail)
-        self.proxyGroups = presentation.groups
+        let providerLookup = proxyProviders.isEmpty ? self.proxyProvidersDetail : proxyProviders
+        let proxiesWithHealthcheckConfig = response.proxies.values.map { proxy in
+            let provider = providerLookup[proxy.name]
+            let resolvedTestURL = proxy.testUrl?.trimmedNonEmpty ?? provider?.testUrl?.trimmedNonEmpty
+            let resolvedTimeout = proxy.timeout.flatMap { $0 > 0 ? $0 : nil }
+                ?? provider?.timeout.flatMap { $0 > 0 ? $0 : nil }
+
+            return ProxyGroup(
+                name: proxy.name,
+                type: proxy.type,
+                now: proxy.now,
+                all: proxy.all,
+                testUrl: resolvedTestURL,
+                timeout: resolvedTimeout,
+                icon: proxy.icon,
+                hidden: proxy.hidden,
+                delayHistory: proxy.delayHistory)
+        }
+
+        let sortIndex = (response.proxies["GLOBAL"]?.all ?? []) + ["GLOBAL"]
+        var sortIndexMap: [String: Int] = [:]
+        for (index, name) in sortIndex.enumerated() where sortIndexMap[name] == nil {
+            sortIndexMap[name] = index
+        }
+
+        let groups = proxiesWithHealthcheckConfig
+            .enumerated()
+            .filter { !$0.element.all.isEmpty }
+            .sorted { lhs, rhs in
+                let lhsOrder = sortIndexMap[lhs.element.name] ?? .max
+                let rhsOrder = sortIndexMap[rhs.element.name] ?? .max
+
+                if lhsOrder != rhsOrder {
+                    return lhsOrder < rhsOrder
+                }
+
+                return lhs.element.name.localizedCaseInsensitiveCompare(rhs.element.name) == .orderedAscending
+            }
+            .map(\.element)
+
+        var delaySamples: [String: [Int]] = [:]
+        var nodeTypes: [String: String] = [:]
+        for proxy in response.proxies.values {
+            if proxy.all.isEmpty, let type = proxy.type.trimmedNonEmpty {
+                nodeTypes[proxy.name] = type
+            }
+            if !proxy.delayHistory.isEmpty {
+                delaySamples[proxy.name] = proxy.delayHistory
+            }
+        }
+
+        for provider in providerLookup.values {
+            for node in provider.proxies ?? [] {
+                if !node.delayHistory.isEmpty, delaySamples[node.name] == nil {
+                    delaySamples[node.name] = node.delayHistory
+                }
+                if let type = node.type.trimmedNonEmpty, nodeTypes[node.name] == nil {
+                    nodeTypes[node.name] = type
+                }
+            }
+        }
+
+        self.proxyGroups = groups
         self.proxyDelaySamples = Self.mergeProxyDelaySamples(
-            api: presentation.delaySamples,
+            api: delaySamples,
             previous: self.proxyDelaySamples)
-        self.proxyNodeTypes = presentation.nodeTypes
+        self.proxyNodeTypes = nodeTypes
     }
 
     private static func mergeProxyDelaySamples(

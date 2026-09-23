@@ -19,6 +19,37 @@ protocol MihomoControlling: AnyObject, Sendable {
     func stopAsync() async
     @discardableResult
     func restartAsync(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+
+    func validateConfig(configPath: String) async throws
+    @discardableResult
+    func start(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+    func stopImmediately()
+    @discardableResult
+    func restart(configPath: String, controller: String) async throws -> CoreLifecycleStatus
+}
+
+extension MihomoControlling {
+    func validateConfig(configPath: String) async throws {
+        try await self.validateConfigAsync(configPath: configPath)
+    }
+
+    @discardableResult
+    func start(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
+        try await self.startAsync(configPath: configPath, controller: controller)
+    }
+
+    func stopImmediately() {
+        self.stop()
+    }
+
+    func stop() async {
+        await self.stopAsync()
+    }
+
+    @discardableResult
+    func restart(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
+        try await self.restartAsync(configPath: configPath, controller: controller)
+    }
 }
 
 enum MihomoBinaryResolutionError: LocalizedError {
@@ -57,12 +88,6 @@ enum MihomoConfigValidationError: LocalizedError {
     }
 }
 
-/// Caps how much core output reaches the app so a spinning mihomo (dead TUN fd
-/// re-logging `batch read packet: ...` at ~160k lines/s) cannot pile up unbounded
-/// main-actor tasks and file writes. Collapses consecutive duplicates, caps the
-/// line rate per window, and reports how many lines it dropped.
-/// Unlocked like `LineAccumulator`: one instance per pipe, and `readabilityHandler`
-/// is already serial per handle.
 private final class LogFloodGate: @unchecked Sendable {
     private let maxLinesPerWindow = 200
     private let windowNanoseconds: UInt64 = 1_000_000_000
@@ -71,8 +96,6 @@ private final class LogFloodGate: @unchecked Sendable {
     private var dropped = 0
     private var lastLine: String?
 
-    /// ponytail: the drop notice rides out with the next accepted line instead of
-    /// on a timer, so a flood that stops dead reports on the core's next log line.
     func accept(_ lines: [String], now: UInt64 = DispatchTime.now().uptimeNanoseconds) -> [String] {
         var accepted: [String] = []
         for line in lines {
@@ -683,48 +706,5 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
         self.stderrHandle?.closeFile()
         self.stdoutHandle = nil
         self.stderrHandle = nil
-    }
-}
-
-@MainActor
-final class DefaultCoreRepository: CoreRepository {
-    private let processManager: any MihomoControlling
-
-    init(processManager: any MihomoControlling) {
-        self.processManager = processManager
-    }
-
-    var status: CoreLifecycleStatus {
-        self.processManager.status
-    }
-
-    var isRunning: Bool {
-        self.processManager.isRunning
-    }
-
-    var detectedBinaryPath: String? {
-        self.processManager.detectedBinaryPath
-    }
-
-    func validateConfig(configPath: String) async throws {
-        try await self.processManager.validateConfigAsync(configPath: configPath)
-    }
-
-    @discardableResult
-    func start(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
-        try await self.processManager.startAsync(configPath: configPath, controller: controller)
-    }
-
-    func stop() async {
-        await self.processManager.stopAsync()
-    }
-
-    func stopImmediately() {
-        self.processManager.stop()
-    }
-
-    @discardableResult
-    func restart(configPath: String, controller: String) async throws -> CoreLifecycleStatus {
-        try await self.processManager.restartAsync(configPath: configPath, controller: controller)
     }
 }

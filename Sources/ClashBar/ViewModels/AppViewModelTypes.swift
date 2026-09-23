@@ -1,5 +1,10 @@
 import Foundation
 
+struct SettingsPortField: Equatable {
+    let key: String
+    let value: String
+}
+
 enum RuntimeVisualStatus {
     case stopped
     case starting
@@ -41,12 +46,16 @@ enum GeoUpdateState: Equatable {
     case failed(message: String)
 }
 
-enum ConfigLogLevel: String, CaseIterable {
+enum ConfigLogLevel: String, CaseIterable, Identifiable {
     case silent
     case error
     case warning
     case info
     case debug
+
+    var id: String {
+        self.rawValue
+    }
 }
 
 enum ConfigPatchValue {

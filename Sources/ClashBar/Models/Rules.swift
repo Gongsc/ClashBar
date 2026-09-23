@@ -1,7 +1,6 @@
 import Foundation
 
 struct RulesSummary: Decodable, Equatable {
-    /// 安全上限，防止异常配置撑爆内存；真实配置（几千条）远低于此，等效于无限制。
     static let retainedRuleLimit = 20000
 
     let rules: [RuleItem]
@@ -9,11 +8,6 @@ struct RulesSummary: Decodable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case rules
-    }
-
-    init(rules: [RuleItem], totalCount: Int? = nil) {
-        self.rules = rules
-        self.totalCount = totalCount ?? rules.count
     }
 
     init(from decoder: Decoder) throws {

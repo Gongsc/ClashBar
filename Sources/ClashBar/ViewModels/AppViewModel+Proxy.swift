@@ -109,10 +109,14 @@ extension AppViewModel {
         let ports = currentSystemProxyPortsFromState()
         let httpPort = ports.httpPort ?? ports.socksPort ?? effectiveMixedPort()
         let socksPort = ports.socksPort ?? ports.httpPort ?? httpPort
-        let script = BuildTerminalProxyCommandUseCase().execute(host: host, httpPort: httpPort, socksPort: socksPort)
+        let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let formattedHost = (trimmedHost.contains(":") && !trimmedHost.hasPrefix("[")) ? "[\(trimmedHost)]" :
+            trimmedHost
+        let script = "export https_proxy=http://\(formattedHost):\(httpPort) "
+            + "http_proxy=http://\(formattedHost):\(httpPort) "
+            + "all_proxy=socks5://\(formattedHost):\(socksPort)"
         copyTextToPasteboard(script)
         appendLog(level: "info", message: tr("log.proxy_export.copied"))
-        // Copying is otherwise invisible when triggered by ⌘C with the panel closed.
         self.statusItemBanner = StatusItemBanner(
             symbolName: "doc.on.clipboard.fill",
             title: tr("ui.banner.copied.title"),

@@ -14,30 +14,23 @@ struct AppMaterialSurface: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: self.cornerRadius, style: .continuous)
 
-        self.legacySurface(shape: shape)
-            .overlay {
-                shape.stroke(self.stroke, lineWidth: self.lineWidth)
+        Group {
+            switch self.fallbackStyle {
+            case let .material(material):
+                shape.fill(material)
+            case let .color(color):
+                shape.fill(color)
             }
-    }
-
-    @ViewBuilder
-    private func legacySurface(shape: RoundedRectangle) -> some View {
-        switch self.fallbackStyle {
-        case let .material(material):
-            shape.fill(material)
-        case let .color(color):
-            shape.fill(color)
+        }
+        .overlay {
+            shape.stroke(self.stroke, lineWidth: self.lineWidth)
         }
     }
 }
 
 extension View {
-    func appBorderedButtonStyle(prominent: Bool = false) -> some View {
-        self.appLegacyBorderedButtonStyle(prominent: prominent)
-    }
-
     @ViewBuilder
-    private func appLegacyBorderedButtonStyle(prominent: Bool) -> some View {
+    func appBorderedButtonStyle(prominent: Bool = false) -> some View {
         if prominent {
             self.buttonStyle(.borderedProminent)
         } else {

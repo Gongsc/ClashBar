@@ -54,7 +54,7 @@ extension AppViewModel {
             syncingKey: "system-proxy-exceptions",
             successMessage: tr("app.settings.saved.system_proxy_exceptions"))
         {
-            try await self.systemProxyRepository.setExceptionsList(normalized)
+            try await self.systemProxyService.setExceptionsList(normalized)
         }
 
         guard success else { return }
@@ -66,7 +66,7 @@ extension AppViewModel {
         guard !self.hasPendingSystemProxyExceptionsChanges else { return }
 
         do {
-            let values = try await self.systemProxyRepository.readExceptionsList()
+            let values = try await self.systemProxyService.readExceptionsList()
             let normalized = self.normalizedSystemProxyExceptionValues(values)
             guard overwriteEmpty || !normalized.isEmpty else { return }
             self.replaceSystemProxyExceptionsDraft(with: normalized)
@@ -78,7 +78,7 @@ extension AppViewModel {
     }
 
     func applyCurrentSystemProxyExceptionsIfNeeded() async throws {
-        try await self.systemProxyRepository.setExceptionsList(self.currentSystemProxyExceptionValues())
+        try await self.systemProxyService.setExceptionsList(self.currentSystemProxyExceptionValues())
     }
 
     var isSystemProxyUsingRemoteCore: Bool {
@@ -145,23 +145,19 @@ extension AppViewModel {
     }
 
     func applySystemProxy(enabled: Bool, host: String, ports: SystemProxyPorts) async throws {
-        try await self.systemProxyRepository.apply(enabled: enabled, host: host, ports: ports)
+        try await self.systemProxyService.apply(enabled: enabled, host: host, ports: ports)
     }
 
     func readSystemProxyEnabledState() async throws -> Bool {
-        try await self.systemProxyRepository.isEnabled()
+        try await self.systemProxyService.isEnabled()
     }
 
     func readSystemProxyActiveDisplay() async throws -> String? {
-        try await self.systemProxyRepository.readActiveDisplay()
-    }
-
-    func readSystemProxyExceptions() async throws -> [String] {
-        try await self.systemProxyRepository.readExceptionsList()
+        try await self.systemProxyService.readActiveDisplay()
     }
 
     func isSystemProxyConfigured(host: String, ports: SystemProxyPorts) async throws -> Bool {
-        try await self.systemProxyRepository.isConfigured(host: host, ports: ports)
+        try await self.systemProxyService.isConfigured(host: host, ports: ports)
     }
 
     func refreshSystemProxyHelperStatus() async {
@@ -169,7 +165,7 @@ extension AppViewModel {
             self.resetSystemProxyObservedState()
             return
         }
-        let snapshot = await self.systemProxyRepository.readHelperHealthSnapshot()
+        let snapshot = await self.systemProxyService.readHelperHealthSnapshot()
         self.applyHelperHealthSnapshot(snapshot)
     }
 
@@ -185,8 +181,8 @@ extension AppViewModel {
         Task { [weak self] in
             guard let self else { return }
 
-            let previousHealth = await self.systemProxyRepository.readHelperHealthSnapshot()
-            await self.systemProxyRepository.warmUpHelperIfPossible()
+            let previousHealth = await self.systemProxyService.readHelperHealthSnapshot()
+            await self.systemProxyService.warmUpHelperIfPossible()
             await self.refreshSystemProxyHelperStatus()
 
             let shouldRefreshProxyStatus = self.isSystemProxyEnabled
@@ -201,17 +197,32 @@ extension AppViewModel {
     }
 
     func systemProxyPorts(from config: ConfigSnapshot) -> SystemProxyPorts {
-        ResolveSystemProxyPortsUseCase().execute(
+        Self.resolveSystemProxyPorts(
             mixedPort: config.mixedPort,
             httpPort: config.port,
             socksPort: config.socksPort)
     }
 
     func currentSystemProxyPortsFromState() -> SystemProxyPorts {
-        ResolveSystemProxyPortsUseCase().execute(
+        Self.resolveSystemProxyPorts(
             mixedPort: mixedPort,
             httpPort: port,
             socksPort: socksPort)
+    }
+
+    static func resolveSystemProxyPorts(mixedPort: Int?, httpPort: Int?, socksPort: Int?) -> SystemProxyPorts {
+        func normalizedPort(_ value: Int?) -> Int? {
+            guard let value, (1...65535).contains(value) else { return nil }
+            return value
+        }
+        if let mixed = normalizedPort(mixedPort) {
+            return SystemProxyPorts(httpPort: mixed, httpsPort: mixed, socksPort: mixed)
+        }
+        let resolvedHTTPPort = normalizedPort(httpPort)
+        return SystemProxyPorts(
+            httpPort: resolvedHTTPPort,
+            httpsPort: resolvedHTTPPort,
+            socksPort: normalizedPort(socksPort))
     }
 
     func resolveSystemProxyTargetFromRuntimeConfig() async throws -> (host: String, ports: SystemProxyPorts) {

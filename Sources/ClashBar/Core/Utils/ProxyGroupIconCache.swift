@@ -153,7 +153,7 @@ struct ProxyGroupIconView: View {
                     .resizable()
                     .interpolation(.high)
                     .antialiased(true)
-                    .aspectRatio(contentMode: .fit)
+                    .scaledToFit()
             }
         }
         .task(id: self.url) {

@@ -53,7 +53,7 @@ enum Endpoint {
     case logs(level: String?)
 
     case getConfigs
-    case putConfigs(force: Bool)
+    case putConfigs(force: Bool, path: String, payload: String?)
     case patchConfigs(body: [String: JSONValue])
 
     case groupDelay(name: String, url: String, timeout: Int)
@@ -134,7 +134,7 @@ enum Endpoint {
         switch self {
         case let .logs(level):
             self.optionalQueryItem(name: "level", value: level)
-        case let .putConfigs(force):
+        case let .putConfigs(force, _, _):
             force ? [URLQueryItem(name: "force", value: "true")] : []
         case let .groupDelay(_, url, timeout), let .proxyDelay(_, url, timeout):
             self.healthcheckQueryItems(url: url, timeout: timeout)
@@ -151,6 +151,12 @@ enum Endpoint {
         switch self {
         case let .patchConfigs(body):
             try? JSONSerialization.data(withJSONObject: body.mapValues(\.foundationObject))
+        case let .putConfigs(_, path, payload):
+            if let payload {
+                try? JSONSerialization.data(withJSONObject: ["payload": payload])
+            } else {
+                try? JSONSerialization.data(withJSONObject: ["path": path])
+            }
         case let .switchProxy(_, target):
             try? JSONSerialization.data(withJSONObject: ["name": target])
         case .upgradeCore, .upgradeGeo:
@@ -222,6 +228,7 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
     private let lock = NSLock()
     private let controlSession: URLSession
     private let longRunningSession: URLSession
+    private let webSocketSession: URLSession
     private let decoder = JSONDecoder()
 
     private(set) var controller: String
@@ -255,6 +262,15 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
                 timeoutIntervalForResource: 240,
                 httpMaximumConnectionsPerHost: 12)
         }
+
+        if let session {
+            self.webSocketSession = session
+        } else {
+            self.webSocketSession = Self.makeSession(
+                timeoutIntervalForRequest: 2,
+                timeoutIntervalForResource: 604_800,
+                httpMaximumConnectionsPerHost: 6)
+        }
     }
 
     func updateCredentials(controller: String, secret: String?) {
@@ -275,7 +291,7 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
 
     func makeWebSocketTask(for endpoint: Endpoint) throws -> URLSessionWebSocketTask {
         let request = try buildWebSocketRequest(for: endpoint)
-        return self.controlSession.webSocketTask(with: request)
+        return self.webSocketSession.webSocketTask(with: request)
     }
 
     private func send(_ endpoint: Endpoint) async throws -> Data {

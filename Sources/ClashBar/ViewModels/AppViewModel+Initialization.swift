@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 extension AppViewModel {
     func configureManagedProcessCallbacks() {
-        self.mihomoBinaryPath = self.coreRepository.detectedBinaryPath ?? "-"
+        self.mihomoBinaryPath = self.processManager.detectedBinaryPath ?? "-"
         if let managedProcess = self.processManager as? MihomoProcessManager {
             managedProcess.onLog = { [weak self] line in
                 Task { @MainActor in
@@ -58,7 +58,7 @@ extension AppViewModel {
         self.ssidStrategyRules = loadPersistedSSIDStrategyRules()
         self.pruneSSIDStrategyRulesIfNeeded()
         self.remoteMachineStore.resetActiveTarget()
-        if let configPath = self.configRepository.selectedConfig?.path {
+        if let configPath = self.configService.selectedConfig?.path {
             _ = self.applyExternalControllerFromSelectedConfigFile(configPath: configPath)
         } else {
             self.refreshControllerUIURL()
@@ -78,7 +78,7 @@ extension AppViewModel {
             await self.applyPendingAppLaunchSettingsOverlayIfNeeded()
             self.seedCoreFeatureRecoveryFromPersistedQuitState()
             if self.hasSystemProxyOpenIntent {
-                await self.systemProxyRepository.warmUpHelperIfPossible()
+                await self.systemProxyService.warmUpHelperIfPossible()
                 await self.refreshSystemProxyHelperStatus()
                 await self.refreshSystemProxyStatus()
                 await self.ensureSystemProxyConsistencyOnFirstLaunchIfNeeded()
