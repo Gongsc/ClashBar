@@ -2,6 +2,33 @@
   "ok": true,
   "releases": [
     {
+      "version": "v1.2.0",
+      "summary": "同步上游 [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) **v0.3.5 / v0.3.6**：系统代理 Helper 改为管理员授权直装，更新 App 后不再失效；TUN 协议栈选择会被记住。",
+      "categories": {
+        "feature": [
+          {
+            "text": "**系统代理 Helper 管理员授权安装**：首次开启系统代理时输入管理员密码，Helper 安装到 `/Library/PrivilegedHelperTools`，不再依赖登录项后台活动；之后更新 App 不会让它失效，只有 Helper 本身升级时才会再次要求授权。"
+          },
+          {
+            "text": "**TUN 协议栈记忆**：记住在 Proxy 快捷区选择的 TUN 协议栈，重启 App 或内核后保持不变。"
+          }
+        ],
+        "improve": [
+          {
+            "text": "**状态栏图标离屏合成**：图标与速率合成为一张图像再交给状态栏，减少视图层级与重绘。"
+          },
+          {
+            "text": "**Helper 状态与排障精简**：移除「后台活动」相关状态，文档同步新的首次授权与卸载 Helper 步骤。"
+          }
+        ],
+        "fix": [
+          {
+            "text": "**从 DMG 安装后 Helper 带隔离属性导致系统代理不生效**：安装时清除隔离属性，安装失败也不再写入成功标记。"
+          }
+        ]
+      }
+    },
+    {
       "version": "v1.1.0",
       "summary": "参考 OpenClash 的自定义规则，新增「覆写」页：在订阅规则前后插入自己的规则与规则集，订阅更新后依然生效，原配置文件不会被修改。",
       "categories": {
@@ -73,6 +100,6 @@
       }
     }
   ],
-  "generatedAt": "2026-09-23T07:43:36.852Z",
+  "generatedAt": "2026-10-09T03:28:39.776Z",
   "source": "CHANGELOG.md"
 }

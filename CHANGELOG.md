@@ -1,3 +1,25 @@
+## v1.2.0
+
+![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v1.2.0-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square) ![Upstream](https://img.shields.io/badge/Synced-ClashBar_v0.3.6-8B5CF6?style=flat-square)
+
+> 同步上游 [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) **v0.3.5 / v0.3.6**：系统代理 Helper 改为管理员授权直装，更新 App 后不再失效；TUN 协议栈选择会被记住。
+
+### 📝 更新日志 (Changelog)
+
+**✨ 新增功能 (New Features)**
+
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **系统代理 Helper 管理员授权安装**：首次开启系统代理时输入管理员密码，Helper 安装到 `/Library/PrivilegedHelperTools`，不再依赖登录项后台活动；之后更新 App 不会让它失效，只有 Helper 本身升级时才会再次要求授权。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **TUN 协议栈记忆**：记住在 Proxy 快捷区选择的 TUN 协议栈，重启 App 或内核后保持不变。
+
+**🚀 优化改进 (Improvements)**
+
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **状态栏图标离屏合成**：图标与速率合成为一张图像再交给状态栏，减少视图层级与重绘。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **Helper 状态与排障精简**：移除「后台活动」相关状态，文档同步新的首次授权与卸载 Helper 步骤。
+
+**🐞 修复问题 (Bug Fixes)**
+
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **从 DMG 安装后 Helper 带隔离属性导致系统代理不生效**：安装时清除隔离属性，安装失败也不再写入成功标记。
+
 ## v1.1.0
 
 ![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v1.1.0-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
