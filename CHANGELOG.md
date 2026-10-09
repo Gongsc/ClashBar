@@ -1,3 +1,48 @@
+## v0.3.6
+
+![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v0.3.6-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
+
+> 本次更新是针对 v0.3.5 的 **系统代理 Helper 安装修复**：修复从 `.dmg` 下载安装的场景下，管理员授权装入的 Helper 二进制与 LaunchDaemon plist 仍带 `com.apple.quarantine` 隔离属性、被系统以「Launch Constraint Violation / Refusing to execute quarantined file」拒绝加载，导致「Helper 已授权但系统代理开关开了不生效」的问题；同时修正安装脚本吞掉 `bootstrap` / `kickstart` 失败却照样写入「已安装」版本标记、使坏状态无法自动重试的缺陷。Helper 版本号一并升到 2，老的坏安装会被强制重装恢复。
+
+### 📝 更新日志 (Changelog)
+
+**🚀 优化改进 (Improvements)**
+
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **安装失败不再写入成功标记**：安装脚本在 `set -e` 下把 `launchctl bootstrap`（失败时先 `bootout` 再重试一次）与 `kickstart` 改为硬失败，版本标记 `echo` 放在最后一步——任何一步加载失败都会以非零退出并把 `stderr` 原文透传回 App，不再写入版本文件，保证下次启动能重新触发安装恢复，而不是被永久锁死在「已安装但不生效」的状态。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **安装现状检查纳入隔离属性**：`installedHelperIsCurrent()` 除比对版本、校验二进制可执行与 plist 存在外，新增对两个目标文件 `com.apple.quarantine` 属性的检查；只要任一文件仍带隔离属性即视为「未正确安装」，自动重新走授权安装流程。
+
+**🐞 修复问题 (Bug Fixes)**
+
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **Helper 安装后仍带隔离属性导致系统代理不生效**：修复 v0.3.5 中经管理员授权装入 `/Library/PrivilegedHelperTools/com.clashbar.helper` 与 `/Library/LaunchDaemons/com.clashbar.helper.plist` 的文件仍残留 `com.apple.quarantine` 的问题。根因是由带隔离标记的 `.app`（下载安装场景）创建的文件会被内核重新盖上隔离属性，仅靠 `cp -X` 不拷贝源 xattr 并不足够；现在拷贝后显式 `xattr -c` + `xattr -d com.apple.quarantine` 清除隔离属性，并在 `bootstrap` 前校验，若仍残留则直接失败退出，不再让被系统拒绝加载的 Helper 静默留下「已安装」标记。
+
+---
+
+## v0.3.5
+
+![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v0.3.5-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
+
+> 本次更新聚焦 **系统代理 Helper 安装方式重构与 TUN 协议栈记忆**：系统代理 Helper 从 `SMAppService` 登录项方式改为「管理员授权直装」——首次开启系统代理输入一次管理员密码，Helper 即被安装到系统目录 `/Library/PrivilegedHelperTools`，之后更新 App 不再失效、无需重新批准后台项目；同时 TUN 协议栈选择改为持久记忆，退出 / 重启 App、重启或启停内核后都会自动恢复到上次选择的栈，而不再回落 `mixed`。此外状态栏图标改为离屏合成单张模板图，渲染路径更简洁；资源包定位与图标加载逻辑进一步收敛。
+
+### 📝 更新日志 (Changelog)
+
+**✨ 新增功能 (New Features)**
+
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **系统代理 Helper 管理员授权安装**：系统代理 Helper 不再走 `SMAppService` 登录项注册与「后台项目批准」链路，改为通过 `osascript ... with administrator privileges` 一次性授权后，用 `cp -X` 将 Helper 二进制与 plist 安装到 `/Library/PrivilegedHelperTools` 及 `/Library/LaunchDaemons`，并写入版本文件、`launchctl bootstrap` + `kickstart` 拉起。首次开启系统代理时输入一次管理员密码即可，之后 **更新 App 不会导致 Helper 失效**，也不需要再去「系统设置 → 登录项」重复批准；仅当版本文件与当前 Helper 版本不一致时才会重新请求授权安装。
+- ![Feature](https://img.shields.io/badge/Feature-10B981?style=flat-square) **TUN 协议栈记忆持久化**：记住用户在 Proxy 快捷区选择的 TUN 协议栈；退出 / 重启 App、重启或启停内核后，开启 TUN 会自动恢复到上次选择的栈，而不再无条件回落 `mixed`。仅当配置文件本身未声明 stack 时才使用保存值，本地目标才写入记忆（远程目标不持久化），启动时若运行态栈与偏好一致则跳过多余 PATCH。
+
+**🚀 优化改进 (Improvements)**
+
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **状态栏图标离屏合成**：`StatusItemContentView` 不再继承 `NSView`，改为纯 `@MainActor` 类，把图标与速率文字离屏合成为单张模板图直接赋给 `statusItem.button.image`，移除子视图、AutoLayout 约束、透明占位图与 layout 逻辑，渲染路径更短、状态栏刷新更直接。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **系统代理 Helper 状态精简**：围绕新的安装方式重整 Helper 健康检查与错误分支，移除「后台项目授权 / 签名不匹配 / 需批准」等旧登录项相关状态，统一为「已安装 / 授权取消 / 安装失败」等更贴合实际的诊断与提示；`TunPermissionService` 也复用同一套 `AdministratorShell` 授权封装。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **资源包定位与图标加载简化**：收敛 `AppResourceBundleLocator` 与 `BrandIcon` 的资源查找逻辑，减少冗余分支，避免打包环境下的资源定位问题。
+- ![Optimize](https://img.shields.io/badge/Optimize-3B82F6?style=flat-square) **文档与打包脚本更新**：文档站同步系统代理排障步骤（首次授权、取消后需再开一次、更新 App 无需重复批准），并补充删除 App 前手动卸载 Helper 的命令；README 增补 Linux DO 社区致谢，图标预处理脚本一并优化。
+
+**🐞 修复问题 (Bug Fixes)**
+
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **更新 App 后系统代理 Helper 失效**：修复此前经 `SMAppService` 注册的 Helper 在 App 更新后需要重新批准后台项目、否则系统代理开关「开了不生效」的问题；Helper 现直装到系统目录并带版本标记，App 更新不再影响已安装的 Helper。
+
+---
+
 ## v0.3.4
 
 ![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v0.3.4-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
