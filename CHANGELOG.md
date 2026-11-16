@@ -1,3 +1,15 @@
+## v1.2.1
+
+![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v1.2.1-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square)
+
+### 📝 更新日志 (Changelog)
+
+**🐞 修复问题 (Bug Fixes)**
+
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **唤醒后恢复规则覆写**。系统唤醒后等待本机内核就绪，再自动应用规则覆写。控制器暂时断连时会重试，重载后恢复原有运行设置。
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **自动修复系统代理 Helper**。开启系统代理时会检查 Helper 是否响应。遇到注册失效时，应用会在获得管理员授权后清理旧注册并重新加载 Helper。
+- ![Fix](https://img.shields.io/badge/Fix-EF4444?style=flat-square) **修正项目主页链接**。点击左上角图标会打开 ClashBarPlus 项目主页。
+
 ## v1.2.0
 
 ![macOS](https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple) ![Version](https://img.shields.io/badge/Release-v1.2.0-10B981?style=flat-square) ![Core](https://img.shields.io/badge/Core-Mihomo-6366f1?style=flat-square) ![Upstream](https://img.shields.io/badge/Synced-ClashBar_v0.3.6-8B5CF6?style=flat-square)

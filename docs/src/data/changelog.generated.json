@@ -2,6 +2,25 @@
   "ok": true,
   "releases": [
     {
+      "version": "v1.2.1",
+      "summary": "",
+      "categories": {
+        "feature": [],
+        "improve": [],
+        "fix": [
+          {
+            "text": "**唤醒后恢复规则覆写**。系统唤醒后等待本机内核就绪，再自动应用规则覆写。控制器暂时断连时会重试，重载后恢复原有运行设置。"
+          },
+          {
+            "text": "**自动修复系统代理 Helper**。开启系统代理时会检查 Helper 是否响应。遇到注册失效时，应用会在获得管理员授权后清理旧注册并重新加载 Helper。"
+          },
+          {
+            "text": "**修正项目主页链接**。点击左上角图标会打开 ClashBarPlus 项目主页。"
+          }
+        ]
+      }
+    },
+    {
       "version": "v1.2.0",
       "summary": "同步上游 [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) **v0.3.5 / v0.3.6**：系统代理 Helper 改为管理员授权直装，更新 App 后不再失效；TUN 协议栈选择会被记住。",
       "categories": {
@@ -100,6 +119,6 @@
       }
     }
   ],
-  "generatedAt": "2026-10-09T03:28:39.776Z",
+  "generatedAt": "2026-11-16T08:08:58.823Z",
   "source": "CHANGELOG.md"
 }
