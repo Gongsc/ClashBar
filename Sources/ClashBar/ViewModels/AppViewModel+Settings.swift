@@ -226,6 +226,18 @@ extension AppViewModel {
         successMessage: String,
         syncSystemProxyPort: Bool = true) async -> Bool
     {
+        guard let body = await self.editableSettingsOverlayBody(overlay) else { return false }
+        return await self.patchConfigBody(
+            body,
+            syncingKey: syncingKey,
+            successMessage: successMessage,
+            syncSystemProxyPort: syncSystemProxyPort)
+    }
+
+    func editableSettingsOverlayBody(
+        _ overlay: EditableSettingsSnapshot,
+        tunStack: String? = nil) async -> [String: ConfigPatchValue]?
+    {
         let fallback = lastSyncedEditableSettings
         let resolvedLogLevel = overlay.logLevel.trimmed.isEmpty
             ? (fallback?.logLevel ?? ConfigLogLevel.info.rawValue)
@@ -234,7 +246,7 @@ extension AppViewModel {
         guard ConfigLogLevel(rawValue: resolvedLogLevel) != nil else {
             settingsErrorMessage = tr("app.settings.error.overlay_invalid_log_level", resolvedLogLevel)
             settingsSavedMessage = nil
-            return false
+            return nil
         }
 
         let resolvedPortFields = [
@@ -256,7 +268,7 @@ extension AppViewModel {
             fields: resolvedPortFields,
             errorMessageKey: "app.settings.error.overlay_port_range",
             skipEmptyValues: true)
-        else { return false }
+        else { return nil }
 
         var body: [String: ConfigPatchValue] = [
             "mode": .string(overlay.mode.rawValue),
@@ -265,16 +277,15 @@ extension AppViewModel {
             "tcp-concurrent": .bool(overlay.tcpConcurrent),
             "log-level": .string(resolvedLogLevel),
         ]
-        let tunBody = await self.tunOverlayPatchBody(enabled: overlay.tunEnabled)
+        var tunBody = await self.tunOverlayPatchBody(enabled: overlay.tunEnabled)
+        if let tunStack {
+            tunBody["stack"] = .string(tunStack)
+        }
         body["tun"] = .object(tunBody)
         for (key, value) in portBody {
             body[key] = value
         }
 
-        return await self.patchConfigBody(
-            body,
-            syncingKey: syncingKey,
-            successMessage: successMessage,
-            syncSystemProxyPort: syncSystemProxyPort)
+        return body
     }
 }

@@ -35,8 +35,10 @@ final class RuleOverrideStore: ObservableObject {
     var monitor: RuleOverrideDirectoryMonitor?
     var needsReapply = false
     var debounceTask: Task<Void, Never>?
-    /// 上次应用时三份文件的内容，用来过滤 attrib / 无实际改动的文件事件。
+    var wakeRecoveryTask: Task<Void, Never>?
+    /// 上次成功应用的内容，以及当前正在提交的内容，用于去除重复文件事件。
     var lastContent: RuleOverrideContent?
+    var applyingContent: RuleOverrideContent?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

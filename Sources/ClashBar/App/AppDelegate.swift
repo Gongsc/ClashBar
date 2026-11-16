@@ -5,6 +5,7 @@ final class ClashBarAppDelegate: NSObject, NSApplicationDelegate {
     let appViewModel = AppViewModel(dependencies: .live)
     private var statusItemController: StatusItemController?
     private var windowObservers: [any NSObjectProtocol] = []
+    private var wakeObserver: (any NSObjectProtocol)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [
@@ -21,6 +22,15 @@ final class ClashBarAppDelegate: NSObject, NSApplicationDelegate {
         self.suppressNonPanelWindows()
 
         self.appViewModel.start()
+        self.wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main)
+        { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.appViewModel.scheduleRuleOverrideRecoveryAfterWake()
+            }
+        }
         self.statusItemController = StatusItemController(appViewModel: self.appViewModel)
         self.appViewModel.presentInitialNoCoreSetupGuideIfNeeded()
 
@@ -55,6 +65,9 @@ final class ClashBarAppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.removeObserver(observer)
         }
         self.windowObservers.removeAll()
+        if let wakeObserver = self.wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+        }
 
         self.appViewModel.shutdownForTermination()
         self.statusItemController?.shutdown()

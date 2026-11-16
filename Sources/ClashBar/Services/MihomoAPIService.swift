@@ -176,6 +176,8 @@ enum Endpoint {
             max(5, TimeInterval(timeout) / 1000.0 + 2)
         case .upgradeCore, .upgradeGeo:
             60
+        case .putConfigs:
+            15
         default:
             2
         }
@@ -325,7 +327,7 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
         throw lastError ?? APIError.invalidResponse
     }
 
-    private static func shouldRetry(error: Error) -> Bool {
+    static func shouldRetry(error: Error) -> Bool {
         guard let urlError = error as? URLError else { return false }
         switch urlError.code {
         case .timedOut,

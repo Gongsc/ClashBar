@@ -214,6 +214,7 @@ extension AppViewModel {
         self.shouldResumeCoreAfterNetworkRecovery = false
         self.stopNetworkReachabilityMonitoring()
         self.stopConfigDirectoryMonitoring()
+        self.ruleOverrideStore.wakeRecoveryTask?.cancel()
         self.cancelDeferredEditableSettingsOverlaySync()
         self.cancelProviderRefresh(reason: "quit requested")
         self.cancelPolling()

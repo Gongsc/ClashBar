@@ -5,7 +5,11 @@ import Foundation
 struct CoreLaunchConfig {
     let path: String
     let workingDirectory: URL?
-    let isOverridden: Bool
+    let overrideContent: RuleOverrideContent?
+
+    var isOverridden: Bool {
+        self.overrideContent?.counts.isEmpty == false
+    }
 }
 
 @MainActor
@@ -19,28 +23,23 @@ extension AppViewModel {
     /// 覆写开启且有内容时生成运行时配置，否则原样返回。生成失败会抛出，调用方按启动失败处理——
     /// 不悄悄退回原配置，免得用户以为规则已经生效。
     func prepareCoreLaunchConfig(configPath: String) throws -> CoreLaunchConfig {
-        let original = CoreLaunchConfig(path: configPath, workingDirectory: nil, isOverridden: false)
+        let original = CoreLaunchConfig(path: configPath, workingDirectory: nil, overrideContent: nil)
         guard !self.isRemoteTarget else { return original }
-        guard self.ruleOverrideStore.isEnabled else {
-            self.ruleOverrideStore.status = nil
-            return original
-        }
+        guard self.ruleOverrideStore.isEnabled else { return original }
 
         do {
             let service = self.ruleOverrideService
             let content = try service.loadContent()
             self.ruleOverrideStore.counts = content.counts
-            self.ruleOverrideStore.lastContent = content
             guard !content.counts.isEmpty else {
-                self.ruleOverrideStore.status = .empty
-                return original
+                return CoreLaunchConfig(path: configPath, workingDirectory: nil, overrideContent: content)
             }
 
             let runtimeURL = try service.writeRuntimeConfig(originalConfigPath: configPath, content: content)
             return CoreLaunchConfig(
                 path: runtimeURL.path,
                 workingDirectory: MihomoProcessManager.resolveWorkingDirectoryURL(configPath: configPath),
-                isOverridden: true)
+                overrideContent: content)
         } catch {
             self.markRuleOverrideFailed(error.localizedDescription)
             throw error
@@ -63,9 +62,17 @@ extension AppViewModel {
     }
 
     func markRuleOverrideApplied(_ launch: CoreLaunchConfig) {
-        guard launch.isOverridden else { return }
+        guard !self.isRemoteTarget else { return }
+        self.ruleOverrideStore.lastContent = launch.overrideContent
+        guard let counts = launch.overrideContent?.counts else {
+            self.ruleOverrideStore.status = nil
+            return
+        }
+        guard !counts.isEmpty else {
+            self.ruleOverrideStore.status = .empty
+            return
+        }
         let configName = URL(fileURLWithPath: launch.path).lastPathComponent
-        let counts = self.ruleOverrideStore.counts
         self.ruleOverrideStore.status = .applied(configName: configName, at: Date())
         let message = self.tr(
             "log.rule_override.applied",
@@ -80,20 +87,22 @@ extension AppViewModel {
     /// 配置目录可以由用户自选，那时 state/runtime/ 不在 mihomo 的 -d 之下，按路径加载会被拒绝。
     func putSelectedConfig(configPath: String) async throws {
         let launch = try self.prepareCoreLaunchConfig(configPath: configPath)
-        guard launch.isOverridden else {
-            try await self.clientOrThrow().requestNoResponse(.putConfigs(force: false, path: configPath, payload: nil))
-            return
-        }
-
         do {
-            let payload = try String(contentsOfFile: launch.path, encoding: .utf8)
-            try await self.clientOrThrow().requestNoResponse(
-                .putConfigs(force: false, path: launch.path, payload: payload))
+            try await self.submitCoreLaunchConfig(launch, client: self.clientOrThrow())
+            self.markRuleOverrideApplied(launch)
         } catch {
-            self.markRuleOverrideFailed(error.localizedDescription)
+            if launch.isOverridden {
+                self.markRuleOverrideFailed(error.localizedDescription)
+            }
             throw error
         }
-        self.markRuleOverrideApplied(launch)
+    }
+
+    private func submitCoreLaunchConfig(_ launch: CoreLaunchConfig, client: MihomoAPIService) async throws {
+        let payload = launch.isOverridden ? try String(contentsOfFile: launch.path, encoding: .utf8) : nil
+        self.ruleOverrideStore.applyingContent = launch.overrideContent
+        defer { self.ruleOverrideStore.applyingContent = nil }
+        try await client.requestNoResponse(.putConfigs(force: false, path: launch.path, payload: payload))
     }
 
     private func markRuleOverrideFailed(_ message: String) {
@@ -110,7 +119,7 @@ extension AppViewModel {
     }
 
     /// 核心在本机运行时重载配置让覆写生效；没运行时只刷新条数，下次启动再生成。
-    func applyRuleOverridesIfRunning(force: Bool = false) async {
+    func applyRuleOverridesIfRunning(force: Bool = false, afterWake: Bool = false) async {
         self.refreshRuleOverrideCounts()
         guard !self.isRemoteTarget, self.processManager.isRunning else { return }
         guard force || self.ruleOverrideStore.isEnabled else { return }
@@ -126,15 +135,19 @@ extension AppViewModel {
         defer { self.ruleOverrideStore.isApplying = false }
         repeat {
             self.ruleOverrideStore.needsReapply = false
-            await self.reloadConfig()
-        } while self.ruleOverrideStore.needsReapply
+            if afterWake, self.ruleOverrideStore.isEnabled {
+                await self.reloadRuleOverridesAfterWake()
+            } else {
+                await self.reloadConfig()
+            }
+        } while self.ruleOverrideStore.needsReapply && !Task.isCancelled && !self.isRemoteTarget
+            && self.processManager.isRunning && !self.isCoreActionProcessing
     }
 
     func refreshRuleOverrideCounts() {
         do {
             let content = try self.ruleOverrideService.loadContent()
             self.ruleOverrideStore.counts = content.counts
-            self.ruleOverrideStore.lastContent = content
         } catch {
             self.markRuleOverrideFailed(error.localizedDescription)
         }
@@ -253,7 +266,101 @@ extension AppViewModel {
             return
         }
         // 只动了注释、属性或保存了相同内容时不重载。
-        guard content != self.ruleOverrideStore.lastContent else { return }
+        guard content != (self.ruleOverrideStore.applyingContent ?? self.ruleOverrideStore.lastContent) else { return }
         await self.applyRuleOverridesIfRunning()
+    }
+
+    // MARK: - System wake
+
+    func scheduleRuleOverrideRecoveryAfterWake() {
+        let store = self.ruleOverrideStore
+        guard !self.isRemoteTarget, store.isEnabled, store.wakeRecoveryTask == nil else { return }
+        store.wakeRecoveryTask = Task { [weak self] in
+            defer { self?.ruleOverrideStore.wakeRecoveryTask = nil }
+            for _ in 0..<60 {
+                guard (try? await Task.sleep(for: .milliseconds(500))) != nil, let self else { return }
+                guard !self.isRemoteTarget, self.ruleOverrideStore.isEnabled else { return }
+                if self.isCoreActionProcessing || self.shouldResumeCoreAfterNetworkRecovery { continue }
+                guard self.processManager.isRunning else { return }
+                if self.ruleOverrideStore.isApplying || self.isTunSyncing || self.settingsSyncingKey != nil
+                    || self.networkReachabilityStatus == .offline
+                {
+                    continue
+                }
+                await self.applyRuleOverridesIfRunning(afterWake: true)
+                return
+            }
+        }
+    }
+
+    private func reloadRuleOverridesAfterWake() async {
+        guard self.ruleOverrideStore.lastContent?.counts.isEmpty == false
+            || !self.ruleOverrideStore.counts.isEmpty else { return }
+        guard let configPath = await self.resolveSelectedConfigPath(),
+              !self.isRemoteTarget, self.processManager.isRunning, !self.isCoreActionProcessing
+        else { return }
+
+        let coreStatus = self.processManager.status
+        let client = MihomoAPIService(controller: self.controller, secret: self.controllerSecret)
+        var settingsPatch: [String: JSONValue]?
+        var shouldRestoreSettings = false
+
+        func isSameLocalCore() -> Bool {
+            !Task.isCancelled && !self.isRemoteTarget && !self.isCoreActionProcessing
+                && self.processManager.isRunning && self.processManager.status == coreStatus
+                && self.configService.selectedConfig?.path == configPath
+        }
+
+        for attempt in 1...3 {
+            guard isSameLocalCore(), self.ruleOverrideStore.isEnabled else { break }
+            do {
+                if settingsPatch == nil {
+                    let config: ConfigSnapshot = try await client.request(.getConfigs)
+                    guard let body = await self.editableSettingsOverlayBody(
+                        EditableSettingsSnapshot(config: config),
+                        tunStack: config.tun?.stack)
+                    else { return }
+                    settingsPatch = body.mapValues(\.jsonValue)
+                }
+                guard isSameLocalCore(), self.ruleOverrideStore.isEnabled else { break }
+                let launch = try self.prepareCoreLaunchConfig(configPath: configPath)
+                do {
+                    try await self.submitCoreLaunchConfig(launch, client: client)
+                    shouldRestoreSettings = true
+                } catch {
+                    // A lost response can mean the core already accepted the reload.
+                    shouldRestoreSettings = shouldRestoreSettings || MihomoAPIService.shouldRetry(error: error)
+                    throw error
+                }
+                guard isSameLocalCore() else { return }
+                self.markRuleOverrideApplied(launch)
+                break
+            } catch {
+                guard isSameLocalCore() else { return }
+                guard attempt < 3, MihomoAPIService.shouldRetry(error: error) else {
+                    self.markRuleOverrideFailed(error.localizedDescription)
+                    break
+                }
+                guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
+            }
+        }
+
+        guard shouldRestoreSettings, let settingsPatch else { return }
+        for attempt in 1...3 {
+            guard isSameLocalCore() else { return }
+            do {
+                try await client.requestNoResponse(.patchConfigs(body: settingsPatch))
+                return
+            } catch {
+                guard isSameLocalCore() else { return }
+                guard attempt < 3, MihomoAPIService.shouldRetry(error: error) else {
+                    self.appendLog(
+                        level: "error",
+                        message: self.tr("log.action.failed", self.tr("log.action_name.reload_config"), error.localizedDescription))
+                    return
+                }
+                guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
+            }
+        }
     }
 }
