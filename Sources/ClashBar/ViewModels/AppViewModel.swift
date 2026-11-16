@@ -159,7 +159,7 @@ final class AppViewModel: ObservableObject {
     @Published var systemProxyHelperFailureReason: SystemProxyHelperFailureReason?
     @Published var systemProxyHelperFailureMessage: String?
     @Published var systemProxyHelperInstalled: Bool?
-    @Published var systemProxyHelperProcessRunning: Bool?
+    @Published var systemProxyHelperReachable: Bool?
     @Published var systemProxyActiveDisplay: String?
     @Published var systemProxyOpenFailureHint: String?
     @Published var systemProxyExceptions: [EditableSystemProxyException] = []

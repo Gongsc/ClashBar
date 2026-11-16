@@ -218,9 +218,9 @@
 "ui.system_proxy.helper_install" = "Install";
 "ui.system_proxy.helper_install.ready" = "Installed";
 "ui.system_proxy.helper_install.missing" = "Not installed";
-"ui.system_proxy.helper_process" = "Helper";
-"ui.system_proxy.helper_process.running" = "Running";
-"ui.system_proxy.helper_process.stopped" = "Stopped";
+"ui.system_proxy.helper_connection" = "Helper connection";
+"ui.system_proxy.helper_connection.reachable" = "Reachable";
+"ui.system_proxy.helper_connection.unreachable" = "Unreachable";
 
 "app.runtime.starting" = "Starting";
 "app.runtime.running" = "Running";
@@ -249,7 +249,7 @@
 "app.system_proxy.error.helper_not_bundled" = "Privileged helper not found in app bundle. Use the packaged .app/.dmg build";
 "app.system_proxy.error.helper_install_location" = "Move ClashBarPlus.app to /Applications and reopen it before enabling system proxy";
 "app.system_proxy.error.helper_not_registered" = "Privileged helper is not installed";
-"app.system_proxy.error.helper_start_timed_out" = "Privileged helper did not start. Allow it in System Settings > General > Login Items if macOS asks, then try again";
+"app.system_proxy.error.helper_start_timed_out" = "Privileged helper did not respond. Turn on system proxy again to retry";
 "app.system_proxy.error.helper_authorization_cancelled" = "Administrator authorization was cancelled";
 "app.system_proxy.error.helper_install_failed" = "Failed to install privileged helper: %@";
 "app.system_proxy.error.helper_connection_failed" = "Failed to connect privileged helper: %@";
@@ -257,7 +257,7 @@
 "app.system_proxy.alert.invalid_host" = "Invalid proxy host";
 "app.system_proxy.alert.invalid_port" = "Invalid proxy port";
 "app.system_proxy.alert.helper_not_registered" = "Helper not installed";
-"app.system_proxy.alert.helper_start_timed_out" = "Helper did not start";
+"app.system_proxy.alert.helper_start_timed_out" = "Helper did not respond";
 "app.system_proxy.alert.helper_authorization_cancelled" = "Administrator authorization cancelled";
 "app.system_proxy.alert.helper_install_failed" = "Helper install failed";
 "app.system_proxy.alert.helper_connection_failed" = "Helper connection failed";

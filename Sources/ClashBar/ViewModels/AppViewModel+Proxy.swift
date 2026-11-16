@@ -62,14 +62,14 @@ extension AppViewModel {
             appendLog(level: "info", message: tr("log.system_proxy.toggled", state))
         } catch {
             appendLog(level: "error", message: tr("log.system_proxy.toggle_failed", systemProxyErrorMessage(error)))
-            if enabled {
-                self.updateSystemProxyOpenFailureHint(for: error)
-            }
             await self.refreshSystemProxyHelperStatus()
             if enabled || self.isSystemProxyEnabled {
                 await refreshSystemProxyStatus()
             } else {
                 self.resetSystemProxyObservedState()
+            }
+            if enabled {
+                self.updateSystemProxyOpenFailureHint(for: error)
             }
         }
     }

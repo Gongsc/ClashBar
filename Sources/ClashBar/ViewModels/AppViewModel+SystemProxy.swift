@@ -115,7 +115,7 @@ extension AppViewModel {
 
     func resetSystemProxyObservedState() {
         self.systemProxyHelperInstalled = nil
-        self.systemProxyHelperProcessRunning = nil
+        self.systemProxyHelperReachable = nil
         self.systemProxyHelperFailureReason = nil
         self.systemProxyHelperFailureMessage = nil
         if !self.isSystemProxyEnabled {
@@ -128,7 +128,7 @@ extension AppViewModel {
         let previousMessage = self.systemProxyHelperFailureMessage
 
         self.systemProxyHelperInstalled = snapshot.helperInstalled
-        self.systemProxyHelperProcessRunning = snapshot.processRunning
+        self.systemProxyHelperReachable = snapshot.helperReachable
         self.systemProxyHelperFailureReason = snapshot.failureReason
         self.systemProxyHelperFailureMessage = snapshot.rawMessage
 

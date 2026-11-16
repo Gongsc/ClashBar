@@ -23,6 +23,8 @@ enum ProxyHelperInstaller {
             sourceBinary: bundleURL.appendingPathComponent(ProxyHelperConstants.helperBundleProgram).path,
             sourcePlist: bundleURL.appendingPathComponent(ProxyHelperConstants.helperBundlePlist).path)
 
+        // The old registration can outlive the app that created it. The privileged
+        // install also removes any job still loaded under that label.
         try? await SMAppService.daemon(plistName: ProxyHelperConstants.daemonPlistName).unregister()
         try await Task.detached(priority: .userInitiated) {
             try AdministratorShell.run(
@@ -42,9 +44,14 @@ enum ProxyHelperInstaller {
 
         return """
         set -e
+        unload_helper() {
+            if /bin/launchctl print system/\(label) >/dev/null 2>&1; then
+                /bin/launchctl bootout system/\(label)
+            fi
+        }
+        unload_helper
         /bin/mkdir -p /Library/PrivilegedHelperTools /Library/LaunchDaemons
         /bin/rm -f \(versionFile)
-        /bin/launchctl bootout system/\(label) >/dev/null 2>&1 || true
         /bin/rm -f \(destBinary)
         /bin/cp -X \(binary) \(destBinary)
         /usr/sbin/chown root:wheel \(destBinary)
@@ -65,13 +72,12 @@ enum ProxyHelperInstaller {
             echo "Failed to remove quarantine attribute from helper plist." >&2
             exit 1
         fi
-        /bin/launchctl enable system/\(label) >/dev/null 2>&1 || true
+        /bin/launchctl enable system/\(label)
         if ! /bin/launchctl bootstrap system \(destPlist) 2>/dev/null; then
             /bin/sleep 0.1
-            /bin/launchctl bootout system/\(label) >/dev/null 2>&1 || true
+            unload_helper
             /bin/launchctl bootstrap system \(destPlist)
         fi
-        /bin/launchctl kickstart -k system/\(label)
         echo \(ProxyHelperConstants.helperVersion) > \(versionFile)
         """
     }

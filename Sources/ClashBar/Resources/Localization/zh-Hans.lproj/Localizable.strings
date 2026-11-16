@@ -220,9 +220,9 @@
 "ui.system_proxy.helper_install" = "安装";
 "ui.system_proxy.helper_install.ready" = "已安装";
 "ui.system_proxy.helper_install.missing" = "未安装";
-"ui.system_proxy.helper_process" = "Helper";
-"ui.system_proxy.helper_process.running" = "已启动";
-"ui.system_proxy.helper_process.stopped" = "未启动";
+"ui.system_proxy.helper_connection" = "Helper 连接";
+"ui.system_proxy.helper_connection.reachable" = "可连接";
+"ui.system_proxy.helper_connection.unreachable" = "无法连接";
 
 "app.runtime.starting" = "启动中";
 "app.runtime.running" = "运行中";
@@ -251,7 +251,7 @@
 "app.system_proxy.error.helper_not_bundled" = "未找到系统代理 helper。请使用打包后的应用（.app/.dmg）";
 "app.system_proxy.error.helper_install_location" = "请先将 ClashBarPlus.app 拖到“应用程序”目录后重试";
 "app.system_proxy.error.helper_not_registered" = "系统代理 helper 尚未安装";
-"app.system_proxy.error.helper_start_timed_out" = "系统代理 helper 没有启动。若系统要求允许后台项目，请到系统设置 > 通用 > 登录项中允许后重试";
+"app.system_proxy.error.helper_start_timed_out" = "系统代理 Helper 未响应，请重新开启系统代理以重试";
 "app.system_proxy.error.helper_authorization_cancelled" = "已取消管理员授权";
 "app.system_proxy.error.helper_install_failed" = "安装系统代理 helper 失败: %@";
 "app.system_proxy.error.helper_connection_failed" = "连接系统代理 helper 失败: %@";
@@ -259,7 +259,7 @@
 "app.system_proxy.alert.invalid_host" = "代理地址无效";
 "app.system_proxy.alert.invalid_port" = "代理端口无效";
 "app.system_proxy.alert.helper_not_registered" = "Helper 未安装";
-"app.system_proxy.alert.helper_start_timed_out" = "Helper 未启动";
+"app.system_proxy.alert.helper_start_timed_out" = "Helper 未响应";
 "app.system_proxy.alert.helper_authorization_cancelled" = "已取消管理员授权";
 "app.system_proxy.alert.helper_install_failed" = "Helper 安装失败";
 "app.system_proxy.alert.helper_connection_failed" = "Helper 连接失败";
