@@ -433,10 +433,7 @@ extension View {
     }
 
     func filterTextField(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .textFieldStyle(.roundedBorder)
-            .font(.app(size: T.FontSize.body, weight: .regular))
-            .foregroundStyle(self.nativePrimaryLabel)
+        FilterTextField(placeholder: placeholder, text: text)
     }
 
     func emptyCard(_ text: String) -> some View {
@@ -623,5 +620,37 @@ struct CompactAsyncIconButton: View {
         .buttonStyle(.borderless)
         .disabled(self.isLoading)
         .onHover { self.hovered = $0 }
+    }
+}
+
+private struct FilterTextField: View {
+    let placeholder: String
+    @Binding var text: String
+
+    @State private var hovered = false
+
+    var body: some View {
+        TextField(self.placeholder, text: self.$text)
+            .textFieldStyle(.roundedBorder)
+            .font(.app(size: T.FontSize.body, weight: .regular))
+            .foregroundStyle(self.nativePrimaryLabel)
+            .overlay(alignment: .trailing) {
+                if !self.text.isEmpty {
+                    Button {
+                        self.text = ""
+                        self.hovered = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.app(size: T.FontSize.subheadline, weight: .medium))
+                            .foregroundStyle(self.hovered ? self.nativeSecondaryLabel : self.nativeTertiaryLabel)
+                            .frame(width: T.compactRowHeight, height: T.compactRowHeight)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.trailing, T.space2)
+                    .onHover { self.hovered = $0 }
+                    .onDisappear { self.hovered = false }
+                }
+            }
     }
 }
