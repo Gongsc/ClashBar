@@ -8,8 +8,8 @@ enum RootTab: String, CaseIterable, Hashable {
     case rules
     case connections
     case logs
-    case system
     case overrides
+    case system
 
     var titleKey: String {
         switch self {
