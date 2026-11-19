@@ -104,6 +104,7 @@ ClashBarPlus 是 [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) 的 fork，
 | 📚 Rules       | 规则统计、筛选、Provider 更新                   |
 | 🌐 Connections | 连接过滤与关闭                                  |
 | 🪵 Logs        | 级别过滤、关键词检索                            |
+| 🔀 Override    | 规则覆写（前置/追加规则与规则集），保存即生效   |
 | ⚙️ System      | 语言、状态栏、端口、`allow-lan` / `ipv6` 等     |
 
 📁 运行时数据目录：`~/Library/Application Support/clashbar`
