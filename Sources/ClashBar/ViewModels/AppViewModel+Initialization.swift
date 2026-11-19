@@ -54,6 +54,7 @@ extension AppViewModel {
         restoreLastSuccessfulConfigIfAvailable()
         self.remoteConfigSubscriptions = loadPersistedRemoteConfigSubscriptions()
         pruneRemoteConfigSubscriptionsIfNeeded()
+        self.refreshRemoteConfigMenuStates()
         restartRemoteConfigBackgroundTasksIfNeeded()
         self.ssidStrategyRules = loadPersistedSSIDStrategyRules()
         self.pruneSSIDStrategyRulesIfNeeded()

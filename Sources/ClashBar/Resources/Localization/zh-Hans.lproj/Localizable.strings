@@ -448,3 +448,4 @@
 "log.rule_override.applied" = "规则覆写已应用到 %@：前置 %d 条，追加 %d 条，规则集 %d 个";
 "log.rule_override.failed" = "规则覆写失败：%@";
 "log.rule_override.open_failed" = "无法打开 %@：%@";
+"fmt.remote_config.next_update_hours" = "自动 %d 小时后";

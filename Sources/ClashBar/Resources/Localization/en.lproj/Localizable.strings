@@ -448,3 +448,4 @@
 "log.rule_override.applied" = "Rule override applied to %@: %d prepended, %d appended, %d rule providers";
 "log.rule_override.failed" = "Rule override failed: %@";
 "log.rule_override.open_failed" = "Couldn't open %@: %@";
+"fmt.remote_config.next_update_hours" = "Auto in %dh";

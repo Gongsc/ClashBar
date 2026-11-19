@@ -216,32 +216,36 @@ enum ValueFormatter {
         var parts: [String] = []
 
         if autoUpdateEnabled, let next = nextUpdateAt {
-            let remaining = max(0, Int(next.timeIntervalSince(now)))
-            let minutes = (remaining / 60) % 60
-            let hours = remaining / 3600
-            if hours > 0 {
+            let remainingSeconds = max(0, next.timeIntervalSince(now))
+            let totalMinutes = max(1, Int(ceil(remainingSeconds / 60.0)))
+            let hours = totalMinutes / 60
+            let minutes = totalMinutes % 60
+            if hours > 0, minutes > 0 {
                 parts.append(L10n.t("fmt.remote_config.next_update_hours_minutes", language: language, hours, minutes))
+            } else if hours > 0 {
+                parts.append(L10n.t("fmt.remote_config.next_update_hours", language: language, hours))
             } else {
-                parts.append(L10n.t("fmt.remote_config.next_update_minutes", language: language, max(1, minutes)))
+                parts.append(L10n.t("fmt.remote_config.next_update_minutes", language: language, minutes))
             }
         }
 
         if let last = lastUpdateAt {
-            let calendar = Calendar.current
-            if calendar.isDate(last, inSameDayAs: now) {
-                parts.append(L10n.t(
-                    "fmt.remote_config.last_update",
-                    language: language,
-                    self.shortTimeFormatter.string(from: last)))
-            } else {
-                parts.append(L10n.t(
-                    "fmt.remote_config.last_update",
-                    language: language,
-                    self.shortDateTimeFormatter.string(from: last)))
-            }
+            let calendar = Calendar.autoupdatingCurrent
+            let formatted = calendar.isDate(last, inSameDayAs: now)
+                ? self.formatLocalDate(last, formatter: self.shortTimeFormatter)
+                : self.formatLocalDate(last, formatter: self.shortDateTimeFormatter)
+            parts.append(L10n.t("fmt.remote_config.last_update", language: language, formatted))
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private static func formatLocalDate(_ date: Date, formatter: DateFormatter) -> String {
+        let currentTimeZone = TimeZone.autoupdatingCurrent
+        if formatter.timeZone != currentTimeZone {
+            formatter.timeZone = currentTimeZone
+        }
+        return formatter.string(from: date)
     }
 
     private static let shortTimeFormatter: DateFormatter = {

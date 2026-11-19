@@ -87,11 +87,14 @@ extension AppViewModel {
             // 真正该重置的时机是内核停止或切换目标机器，由 resetTrafficPresentation() 负责。
             self.resetTrafficTotalsForHiddenPanel()
             self.releasePanelCachedData()
+            self.stopRemoteConfigMenuRefreshTimer()
         }
         trimInMemoryLogsForCurrentVisibility()
         self.updateDataAcquisitionPolicy()
 
         guard presented else { return }
+        self.refreshRemoteConfigMenuStates()
+        self.startRemoteConfigMenuRefreshTimerIfNeeded()
         self.flushPendingTrafficSnapshotIfNeeded(immediately: true)
         self.scheduleRefreshForActivatedTab(activeMenuTab)
         Task { [weak self] in
