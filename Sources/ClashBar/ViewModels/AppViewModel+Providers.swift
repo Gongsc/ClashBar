@@ -49,6 +49,7 @@ extension AppViewModel {
 
         await self.runSingleProviderUpdate(
             actionName: tr("log.action_name.update_proxy_provider", name),
+            refreshProxyGroups: true,
             operation: {
                 try await self.clientOrThrow().requestNoResponse(.updateProxyProvider(name: name))
             })
@@ -172,6 +173,10 @@ extension AppViewModel {
             })
         failed += proxyResult.failed
         guard proxyResult.completed else { return }
+        if !proxyNames.isEmpty {
+            await self.refreshProxyGroups()
+            guard checkpoint() else { return }
+        }
 
         let ruleResult = await self.updateProvidersSequential(
             names: ruleNames,
@@ -188,6 +193,10 @@ extension AppViewModel {
             })
         failed += ruleResult.failed
         guard ruleResult.completed else { return }
+        if self.isPanelPresented, !proxyNames.isEmpty || !ruleNames.isEmpty {
+            await self.refreshProvidersAndRules()
+            guard checkpoint() else { return }
+        }
 
         let resultPhase: ProviderRefreshPhase = failed == 0 ? .succeeded : .failed
         let resultMessage = failed == 0
@@ -294,9 +303,16 @@ extension AppViewModel {
         }
     }
 
-    private func runSingleProviderUpdate(actionName: String, operation: @escaping () async throws -> Void) async {
+    private func runSingleProviderUpdate(
+        actionName: String,
+        refreshProxyGroups: Bool = false,
+        operation: @escaping () async throws -> Void) async
+    {
         await runNoResponseAction(actionName) {
             try await operation()
+            if refreshProxyGroups {
+                await self.refreshProxyGroups()
+            }
             await self.refreshProvidersAndRules()
         }
     }

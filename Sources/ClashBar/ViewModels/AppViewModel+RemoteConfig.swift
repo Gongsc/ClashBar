@@ -49,6 +49,7 @@ extension AppViewModel {
                 autoUpdateIntervalHours: input.autoUpdateIntervalHours,
                 lastUpdateCheckAt: Date())
             self.upsertRemoteConfigSubscription(for: fileName, subscription: subscription)
+            self.syncConfigSignatureSnapshotToMonitorBaseline()
             let message = tr("log.config.import_remote.success", fileName)
             appendLog(level: "info", message: message)
 
@@ -318,6 +319,7 @@ extension AppViewModel {
     func reloadConfig() async {
         let actionName = tr("log.action_name.reload_config")
         let expectedTunEnabled = isTunEnabled
+        var didReloadConfig = false
 
         do {
             ensureAPIClient()
@@ -326,10 +328,20 @@ extension AppViewModel {
                 return
             }
             try await self.putSelectedConfig(configPath: configPath)
+            didReloadConfig = true
             try await self.restoreTunAfterConfigReloadIfNeeded(expectedEnabled: expectedTunEnabled)
             appendLog(level: "info", message: tr("log.action.success", actionName))
         } catch {
             appendLog(level: "error", message: tr("log.action.failed", actionName, error.localizedDescription))
+        }
+
+        if didReloadConfig {
+            await self.refreshProxyGroups()
+            if self.isPanelPresented {
+                Task { [weak self] in
+                    await self?.refreshProvidersAndRules()
+                }
+            }
         }
     }
 
@@ -349,7 +361,7 @@ extension AppViewModel {
         }
     }
 
-    private func refreshConfigStateAfterMutation() {
+    func refreshConfigStateAfterMutation() {
         _ = configService.reloadConfigs()
         if self.syncSelectedConfigSelection(configService.selectedConfig) == nil {
             selectedConfigName = "-"

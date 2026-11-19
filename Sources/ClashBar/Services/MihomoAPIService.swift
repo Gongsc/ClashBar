@@ -176,8 +176,10 @@ enum Endpoint {
             max(5, TimeInterval(timeout) / 1000.0 + 2)
         case .upgradeCore, .upgradeGeo:
             60
-        case .putConfigs:
-            15
+        case .putConfigs, .updateProxyProvider, .updateRuleProvider:
+            30
+        case .proxies, .proxyProviders, .proxyProvider, .ruleProviders, .rules, .getConfigs, .patchConfigs:
+            5
         default:
             2
         }
@@ -185,7 +187,15 @@ enum Endpoint {
 
     var usesLongRunningSession: Bool {
         switch self {
-        case .groupDelay, .proxyDelay, .proxyProviderHealthcheck, .proxyProviderProxyHealthcheck:
+        case .groupDelay,
+             .proxyDelay,
+             .proxyProviderHealthcheck,
+             .proxyProviderProxyHealthcheck,
+             .putConfigs,
+             .updateProxyProvider,
+             .updateRuleProvider,
+             .upgradeCore,
+             .upgradeGeo:
             true
         default:
             false
@@ -249,7 +259,7 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
             self.controlSession = session
         } else {
             self.controlSession = Self.makeSession(
-                timeoutIntervalForRequest: 2,
+                timeoutIntervalForRequest: 5,
                 timeoutIntervalForResource: 240,
                 httpMaximumConnectionsPerHost: 6)
         }
@@ -260,7 +270,7 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
             self.longRunningSession = session
         } else {
             self.longRunningSession = Self.makeSession(
-                timeoutIntervalForRequest: 2,
+                timeoutIntervalForRequest: 30,
                 timeoutIntervalForResource: 240,
                 httpMaximumConnectionsPerHost: 12)
         }
@@ -317,7 +327,9 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
                 return data
             } catch {
                 lastError = error
-                guard Self.shouldRetry(error: error), attempt < maxAttempts - 1 else {
+                guard Self.shouldRetryInSend(error: error, endpoint: endpoint, attempt: attempt),
+                      attempt < maxAttempts - 1
+                else {
                     throw error
                 }
                 try await Task.sleep(nanoseconds: 250_000_000)
@@ -325,6 +337,14 @@ final class MihomoAPIService: MihomoAPITransporting, @unchecked Sendable {
         }
 
         throw lastError ?? APIError.invalidResponse
+    }
+
+    private static func shouldRetryInSend(error: Error, endpoint: Endpoint, attempt: Int) -> Bool {
+        guard Self.shouldRetry(error: error) else { return false }
+        if let urlError = error as? URLError, urlError.code == .timedOut {
+            return endpoint.timeoutInterval < 5 && attempt == 0
+        }
+        return true
     }
 
     static func shouldRetry(error: Error) -> Bool {

@@ -30,13 +30,14 @@ extension AppViewModel {
         Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
-                await operation(self)
                 do {
                     let interval = max(1_000_000_000, intervalProvider(self))
                     try await Task.sleep(nanoseconds: interval)
                 } catch {
                     return
                 }
+                guard !Task.isCancelled else { return }
+                await operation(self)
             }
         }
     }
@@ -51,7 +52,11 @@ extension AppViewModel {
         }
         if mediumFrequencyTask == nil {
             mediumFrequencyTask = self.startPeriodicTask(
-                intervalProvider: { $0.mediumFrequencyIntervalNanoseconds },
+                intervalProvider: {
+                    $0.apiStatus == .degraded
+                        ? 1_000_000_000
+                        : $0.mediumFrequencyIntervalNanoseconds
+                },
                 operation: { await $0.refreshMediumFrequency() })
         }
         if lowFrequencyTask == nil {
@@ -214,29 +219,85 @@ extension AppViewModel {
         }
     }
 
+    private func captureAPIResult<Value>(
+        _ operation: () async throws -> Value) async -> Result<Value, Error>
+    {
+        do {
+            return try await .success(operation())
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    private func applyProxyGroupsWithDeferredProviders(
+        _ response: ProxyGroupsResponse,
+        providersTask: Task<(providers: [String: ProviderDetail], error: Error?), Never>)
+    {
+        self.proxyStore.proxyGroupsRefreshGeneration += 1
+        let generation = self.proxyStore.proxyGroupsRefreshGeneration
+        self.applyProxyGroupsResponse(response)
+
+        Task { [weak self] in
+            let providersResult = await providersTask.value
+            guard let self else { return }
+            guard !Task.isCancelled, generation == self.proxyStore.proxyGroupsRefreshGeneration else { return }
+            self.noteProxyProvidersAPIAvailability(error: providersResult.error)
+            if !providersResult.providers.isEmpty {
+                self.applyProxyGroupsResponse(response, proxyProviders: providersResult.providers)
+            }
+        }
+    }
+
     private func refreshMediumFrequency() async {
         await runRefresh {
             let client = try self.clientOrThrow()
-            async let versionTask: VersionInfo = client.request(.version)
-            async let configTask: ConfigSnapshot = client.request(.getConfigs)
 
             if self.activeMenuTab == .proxy {
-                async let proxyGroupsTask: ProxyGroupsResponse = client.request(.proxies)
-                async let providersTask = self.fetchProxyProvidersSummarySafely(client: client)
+                async let versionTask: Result<VersionInfo, Error> = self.captureAPIResult {
+                    try await client.request(.version)
+                }
+                async let configTask: Result<ConfigSnapshot, Error> = self.captureAPIResult {
+                    try await client.request(.getConfigs)
+                }
+                async let proxyGroupsTask: Result<ProxyGroupsResponse, Error> = self.captureAPIResult {
+                    try await client.request(.proxies)
+                }
+                let providersTask = Task {
+                    await self.fetchProxyProvidersSummarySafely(client: client)
+                }
 
-                let (versionInfo, configSnapshot, resolvedGroups, providersResult) = try await (
-                    versionTask,
-                    configTask,
-                    proxyGroupsTask,
-                    providersTask)
+                var firstError: Error?
+                switch await proxyGroupsTask {
+                case let .success(resolvedGroups):
+                    self.applyProxyGroupsWithDeferredProviders(
+                        resolvedGroups,
+                        providersTask: providersTask)
+                case let .failure(error):
+                    providersTask.cancel()
+                    firstError = error
+                }
 
-                self.version = versionInfo.version
-                self.applyRuntimeConfigSnapshot(configSnapshot)
-                self.noteProxyProvidersAPIAvailability(error: providersResult.error)
-                self.applyProxyGroupsResponse(
-                    resolvedGroups,
-                    proxyProviders: providersResult.providers)
+                let (versionResult, configResult) = await (versionTask, configTask)
+                switch versionResult {
+                case let .success(versionInfo):
+                    self.version = versionInfo.version
+                case let .failure(error):
+                    firstError = firstError ?? error
+                }
+
+                switch configResult {
+                case let .success(configSnapshot):
+                    self.applyRuntimeConfigSnapshot(configSnapshot)
+                case let .failure(error):
+                    firstError = firstError ?? error
+                }
+
+                if let firstError {
+                    throw firstError
+                }
             } else {
+                async let versionTask: VersionInfo = client.request(.version)
+                async let configTask: ConfigSnapshot = client.request(.getConfigs)
                 let (versionInfo, configSnapshot) = try await (versionTask, configTask)
                 self.version = versionInfo.version
                 self.applyRuntimeConfigSnapshot(configSnapshot)
@@ -284,6 +345,7 @@ extension AppViewModel {
     }
 
     func clearProxyPresentation() {
+        self.proxyStore.proxyGroupsRefreshGeneration += 1
         proxyGroups = []
         proxyDelaySamples = [:]
         proxyNodeTypes = [:]
@@ -402,12 +464,16 @@ extension AppViewModel {
     func refreshProxyGroups() async {
         await runRefresh {
             let client = try self.clientOrThrow()
-            async let groupsTask: ProxyGroupsResponse = client.request(.proxies)
-            async let providersTask = self.fetchProxyProvidersSummarySafely(client: client)
-
-            let (resolvedGroups, providersResult) = try await (groupsTask, providersTask)
-            self.noteProxyProvidersAPIAvailability(error: providersResult.error)
-            self.applyProxyGroupsResponse(resolvedGroups, proxyProviders: providersResult.providers)
+            let providersTask = Task {
+                await self.fetchProxyProvidersSummarySafely(client: client)
+            }
+            do {
+                let resolvedGroups: ProxyGroupsResponse = try await client.request(.proxies)
+                self.applyProxyGroupsWithDeferredProviders(resolvedGroups, providersTask: providersTask)
+            } catch {
+                providersTask.cancel()
+                throw error
+            }
         }
     }
 

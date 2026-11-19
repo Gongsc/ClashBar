@@ -69,6 +69,8 @@ final class ProxyStore: ObservableObject {
         willSet { self.publishChangeIfNeeded(current: self.isRuleProvidersRefreshing, next: newValue) }
     }
 
+    var proxyGroupsRefreshGeneration: Int = 0
+
     private func publishChangeIfNeeded<Value: Equatable>(current: Value, next: Value) {
         guard current != next else { return }
         self.objectWillChange.send()

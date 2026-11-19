@@ -142,6 +142,8 @@ extension AppViewModel {
             try writeConfigData(data, to: targetURL)
 
             self.removeRemoteConfigSubscription(for: fileName)
+            self.refreshConfigStateAfterMutation()
+            self.syncConfigSignatureSnapshotToMonitorBaseline()
             appendLog(level: "info", message: tr("log.config.import_local.success", fileName))
 
             if isOverwrite, self.shouldAutoReloadCurrentConfig(updatedFileNames: [fileName]) {
