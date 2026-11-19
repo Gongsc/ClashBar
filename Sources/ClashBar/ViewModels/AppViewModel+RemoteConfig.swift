@@ -338,8 +338,9 @@ extension AppViewModel {
 
     func reloadConfig() async {
         let actionName = tr("log.action_name.reload_config")
-        let expectedTunEnabled = isTunEnabled
+        let settingsOverlay = self.currentEditableSettingsSnapshot()
         var didReloadConfig = false
+        var restoredSettings = false
 
         do {
             ensureAPIClient()
@@ -347,16 +348,24 @@ extension AppViewModel {
                 appendLog(level: "error", message: tr("log.start.no_config"))
                 return
             }
+            self.preserveLocalSettingsOnNextSync = true
             try await self.putSelectedConfig(configPath: configPath)
             didReloadConfig = true
-            try await self.restoreTunAfterConfigReloadIfNeeded(expectedEnabled: expectedTunEnabled)
+            restoredSettings = await self.restoreSettingsAfterConfigReload(settingsOverlay)
+            if !restoredSettings {
+                self.preserveLocalSettingsOnNextSync = false
+                try await self.restoreTunAfterConfigReloadIfNeeded(expectedEnabled: settingsOverlay.tunEnabled)
+            }
             appendLog(level: "info", message: tr("log.action.success", actionName))
         } catch {
+            self.preserveLocalSettingsOnNextSync = false
             appendLog(level: "error", message: tr("log.action.failed", actionName, error.localizedDescription))
         }
 
         if didReloadConfig {
-            await self.refreshProxyGroups()
+            if !restoredSettings || self.activeMenuTab != .proxy {
+                await self.refreshProxyGroups()
+            }
             if self.isPanelPresented {
                 Task { [weak self] in
                     await self?.refreshProvidersAndRules()
@@ -554,6 +563,17 @@ extension AppViewModel {
         let trimmed = rawVersion.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != "-" else { return nil }
         return trimmed
+    }
+
+    private func restoreSettingsAfterConfigReload(_ overlay: EditableSettingsSnapshot) async -> Bool {
+        guard isRuntimeRunning else {
+            self.preserveLocalSettingsOnNextSync = false
+            return true
+        }
+        return await self.applyEditableSettingsOverlay(
+            overlay,
+            syncingKey: "config-reload-overlay",
+            successMessage: "")
     }
 
     private func restoreTunAfterConfigReloadIfNeeded(expectedEnabled: Bool) async throws {

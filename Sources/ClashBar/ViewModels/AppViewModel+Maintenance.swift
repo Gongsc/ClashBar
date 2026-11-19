@@ -8,11 +8,26 @@ extension AppViewModel {
         self.coreUpgradeFeedbackClearTask?.cancel()
         self.coreUpgradeFeedbackClearTask = nil
         self.coreUpgradeState = .running
+        let settingsOverlay = self.currentEditableSettingsSnapshot()
+        let previousVersion = self.version.trimmed
+        let preservedTunStack = self.isRemoteTarget ? self.tunStack : nil
 
         do {
+            self.preserveLocalSettingsOnNextSync = true
             let response: CoreUpgradeResponse = try await self.clientOrThrow().request(.upgradeCore)
-            self.applyCoreUpgradeState(self.coreUpgradeState(from: response))
+            let nextState = self.coreUpgradeState(from: response)
+            if case .succeeded = nextState {
+                self.applyCoreUpgradeState(
+                    nextState,
+                    settingsOverlay: settingsOverlay,
+                    previousVersion: previousVersion,
+                    tunStack: preservedTunStack)
+            } else {
+                self.preserveLocalSettingsOnNextSync = false
+                self.applyCoreUpgradeState(nextState)
+            }
         } catch {
+            self.preserveLocalSettingsOnNextSync = false
             self.applyCoreUpgradeState(self.coreUpgradeState(from: error))
         }
     }
@@ -23,11 +38,19 @@ extension AppViewModel {
         self.geoUpdateFeedbackClearTask?.cancel()
         self.geoUpdateFeedbackClearTask = nil
         self.geoUpdateState = .updating
+        let settingsOverlay = self.currentEditableSettingsSnapshot()
+        let preservedTunStack = self.isRemoteTarget ? self.tunStack : nil
 
         do {
+            self.preserveLocalSettingsOnNextSync = true
             try await self.clientOrThrow().requestNoResponse(.upgradeGeo)
+            await self.restoreSettingsOverlayAfterMaintenance(
+                settingsOverlay,
+                syncingKey: "geo-upgrade-overlay",
+                tunStack: preservedTunStack)
             self.applyGeoUpdateState(.succeeded)
         } catch {
+            self.preserveLocalSettingsOnNextSync = false
             self.applyGeoUpdateState(.failed(message: self.geoUpdateFailureMessage(from: error)))
         }
     }
@@ -58,7 +81,12 @@ extension AppViewModel {
         return false
     }
 
-    private func applyCoreUpgradeState(_ state: CoreUpgradeState) {
+    private func applyCoreUpgradeState(
+        _ state: CoreUpgradeState,
+        settingsOverlay: EditableSettingsSnapshot? = nil,
+        previousVersion: String? = nil,
+        tunStack: String? = nil)
+    {
         self.coreUpgradeState = state
 
         switch state {
@@ -67,7 +95,10 @@ extension AppViewModel {
         case .succeeded:
             self.appendLog(level: "info", message: tr("log.core_upgrade.updated"))
             Task { [weak self] in
-                await self?.refreshCoreVersionAfterUpgradeIfPossible()
+                await self?.restoreCoreStateAfterUpgradeIfPossible(
+                    settingsOverlay: settingsOverlay,
+                    previousVersion: previousVersion,
+                    tunStack: tunStack)
             }
         case let .alreadyLatest(version):
             if let version, !version.isEmpty {
@@ -128,20 +159,103 @@ extension AppViewModel {
         }
     }
 
-    private func refreshCoreVersionAfterUpgradeIfPossible() async {
+    private func restoreCoreStateAfterUpgradeIfPossible(
+        settingsOverlay: EditableSettingsSnapshot?,
+        previousVersion: String?,
+        tunStack: String?) async
+    {
+        let normalizedPreviousVersion = previousVersion?.trimmedNonEmpty
+        var sawRestart = false
+
         do {
             try await Task.sleep(nanoseconds: 750_000_000)
         } catch {
+            self.preserveLocalSettingsOnNextSync = false
             return
         }
 
-        guard !Task.isCancelled else { return }
+        for attempt in 0..<20 {
+            guard !Task.isCancelled else {
+                self.preserveLocalSettingsOnNextSync = false
+                return
+            }
 
-        do {
-            let versionInfo: VersionInfo = try await self.clientOrThrow().request(.version)
-            guard !Task.isCancelled else { return }
-            self.version = versionInfo.version
-        } catch {}
+            do {
+                let versionInfo: VersionInfo = try await self.clientOrThrow().request(.version)
+                guard !Task.isCancelled else {
+                    self.preserveLocalSettingsOnNextSync = false
+                    return
+                }
+                let fetchedVersion = versionInfo.version.trimmed
+                self.version = versionInfo.version
+
+                let versionChanged = normalizedPreviousVersion != nil && fetchedVersion != normalizedPreviousVersion
+                if versionChanged || sawRestart || attempt >= 3 {
+                    break
+                }
+            } catch {
+                sawRestart = true
+            }
+
+            do {
+                try await Task.sleep(nanoseconds: 400_000_000)
+            } catch {
+                self.preserveLocalSettingsOnNextSync = false
+                return
+            }
+        }
+
+        guard !Task.isCancelled else {
+            self.preserveLocalSettingsOnNextSync = false
+            return
+        }
+
+        if let settingsOverlay {
+            self.preserveLocalSettingsOnNextSync = true
+            await self.restoreSettingsOverlayAfterMaintenance(
+                settingsOverlay,
+                syncingKey: "core-upgrade-overlay",
+                tunStack: tunStack,
+                deferIfUnreachable: true)
+        } else {
+            self.preserveLocalSettingsOnNextSync = false
+        }
+
+        await self.refreshProxyGroups()
+    }
+
+    private func restoreSettingsOverlayAfterMaintenance(
+        _ overlay: EditableSettingsSnapshot,
+        syncingKey: String,
+        tunStack: String?,
+        deferIfUnreachable: Bool = false) async
+    {
+        guard self.isRemoteTarget || self.isRuntimeRunning else {
+            self.preserveLocalSettingsOnNextSync = false
+            return
+        }
+
+        if let tunStack {
+            guard let body = await self.editableSettingsOverlayBody(overlay, tunStack: tunStack) else {
+                self.preserveLocalSettingsOnNextSync = false
+                return
+            }
+            _ = await self.patchConfigBody(
+                body,
+                syncingKey: syncingKey,
+                successMessage: "",
+                syncSystemProxyPort: !self.isRemoteTarget)
+            return
+        }
+
+        if deferIfUnreachable {
+            await self.syncEditableSettingsOverlayForCoreBootstrap(overlay, syncingKey: syncingKey)
+        } else {
+            _ = await self.applyEditableSettingsOverlay(
+                overlay,
+                syncingKey: syncingKey,
+                successMessage: "")
+        }
     }
 
     private func coreUpgradeState(from response: CoreUpgradeResponse) -> CoreUpgradeState {
